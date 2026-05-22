@@ -273,8 +273,8 @@ const Storage = (() => {
   function getDatasetMetas() { return lsGet('ds_meta', []); }
 
   // ── Image Library ──────────────────────────────────────────
-  async function saveImage(name, src) {
-    return idbPut(STORE_IMGS, { name, src, uploadedAt: new Date().toISOString() });
+  async function saveImage(name, src, group = '') {
+    return idbPut(STORE_IMGS, { name, src, group, uploadedAt: new Date().toISOString() });
   }
   async function getImage(name)    { return idbGet(STORE_IMGS, name); }
   async function deleteImage(name) { return idbDel(STORE_IMGS, name); }
@@ -762,6 +762,21 @@ Views.data = {
     if (!grid) return;
     const count  = document.getElementById('image-lib-count');
     const images = await Storage.getAllImages();
+
+    // Populate group selector with current dataset names
+    const groupSel = document.getElementById('image-lib-group');
+    if (groupSel) {
+      const prev = groupSel.value;
+      groupSel.innerHTML = '<option value="">General</option>';
+      Storage.getDatasetMetas().forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        groupSel.appendChild(opt);
+      });
+      if ([...groupSel.options].some(o => o.value === prev)) groupSel.value = prev;
+    }
+
     if (count) count.textContent = images.length
       ? `${images.length} image${images.length !== 1 ? 's' : ''} stored`
       : '';
@@ -770,15 +785,45 @@ Views.data = {
       grid.innerHTML = '<div class="empty-state" style="padding:1rem"><p>No images yet. Click <strong>+ Upload Images</strong>.</p></div>';
       return;
     }
+
+    // Group images by their group field
+    const groups = {};
     images.forEach(img => {
-      const item = document.createElement('div');
-      item.className = 'image-lib-item';
-      item.innerHTML = `
-        <img src="${esc(img.src)}" alt="${esc(img.name)}" class="image-lib-thumb">
-        <span class="image-lib-name" title="${esc(img.name)}">${esc(img.name)}</span>
-        <button class="btn btn-danger image-lib-del" data-name="${esc(img.name)}" title="Remove">&#x2715;</button>`;
-      grid.appendChild(item);
+      const g = img.group || '';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(img);
     });
+    const keys = Object.keys(groups).sort((a, b) => {
+      if (a === '') return -1;
+      if (b === '') return 1;
+      return a.localeCompare(b);
+    });
+    const showHeaders = keys.length > 1;
+
+    keys.forEach(key => {
+      const section = document.createElement('div');
+      section.className = 'image-lib-section';
+      if (showHeaders) {
+        const header = document.createElement('div');
+        header.className = 'image-lib-group-header';
+        header.textContent = key || 'General';
+        section.appendChild(header);
+      }
+      const subGrid = document.createElement('div');
+      subGrid.className = 'image-lib-grid';
+      groups[key].forEach(img => {
+        const item = document.createElement('div');
+        item.className = 'image-lib-item';
+        item.innerHTML = `
+          <img src="${esc(img.src)}" alt="${esc(img.name)}" class="image-lib-thumb">
+          <span class="image-lib-name" title="${esc(img.name)}">${esc(img.name)}</span>
+          <button class="btn btn-danger image-lib-del" data-name="${esc(img.name)}" title="Remove">&#x2715;</button>`;
+        subGrid.appendChild(item);
+      });
+      section.appendChild(subGrid);
+      grid.appendChild(section);
+    });
+
     grid.querySelectorAll('.image-lib-del').forEach(btn => {
       btn.addEventListener('click', async e => {
         e.stopPropagation();
@@ -793,6 +838,8 @@ Views.data = {
   },
 
   async uploadImages(files) {
+    const groupSel = document.getElementById('image-lib-group');
+    const group = groupSel ? groupSel.value : '';
     let added = 0, skipped = 0;
     for (const file of [...files]) {
       if (!file.type.startsWith('image/')) { skipped++; continue; }
@@ -802,7 +849,7 @@ Views.data = {
         continue;
       }
       const src = await fileToDataURI(file);
-      await Storage.saveImage(file.name, src);
+      await Storage.saveImage(file.name, src, group);
       added++;
     }
     if (added)   Toast.show(`${added} image${added !== 1 ? 's' : ''} added to library`, 'success');
@@ -1181,17 +1228,43 @@ Views.builder = {
       Toast.show('No images in library. Upload some on the Data page first.', 'warning', 4000);
       return;
     }
-    const grid = document.createElement('div');
-    grid.className = 'image-lib-grid image-lib-picker';
+    const container = document.createElement('div');
+    container.className = 'image-lib-picker';
+
+    // Group images
+    const groups = {};
     images.forEach(img => {
-      const btn = document.createElement('button');
-      btn.className = 'image-lib-pick-btn';
-      btn.innerHTML = `<img src="${esc(img.src)}" class="image-lib-thumb" alt="${esc(img.name)}">
-        <span class="image-lib-name">${esc(img.name)}</span>`;
-      btn.addEventListener('click', () => { Modal.hide(); onPick(img.src, img.name); });
-      grid.appendChild(btn);
+      const g = img.group || '';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(img);
     });
-    Modal.show({ title: '📚 Pick from Library', body: grid, buttons: [{ label: 'Cancel' }] });
+    const keys = Object.keys(groups).sort((a, b) => {
+      if (a === '') return -1;
+      if (b === '') return 1;
+      return a.localeCompare(b);
+    });
+    const showHeaders = keys.length > 1;
+
+    keys.forEach(key => {
+      if (showHeaders) {
+        const header = document.createElement('div');
+        header.className = 'image-lib-group-header';
+        header.textContent = key || 'General';
+        container.appendChild(header);
+      }
+      const subGrid = document.createElement('div');
+      subGrid.className = 'image-lib-grid';
+      groups[key].forEach(img => {
+        const btn = document.createElement('button');
+        btn.className = 'image-lib-pick-btn';
+        btn.innerHTML = `<img src="${esc(img.src)}" class="image-lib-thumb" alt="${esc(img.name)}">
+          <span class="image-lib-name">${esc(img.name)}</span>`;
+        btn.addEventListener('click', () => { Modal.hide(); onPick(img.src, img.name); });
+        subGrid.appendChild(btn);
+      });
+      container.appendChild(subGrid);
+    });
+    Modal.show({ title: '📚 Pick from Library', body: container, buttons: [{ label: 'Cancel' }] });
   },
 
   pickImage(onPick) {
