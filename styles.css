@@ -265,6 +265,23 @@ select { cursor: pointer; }
   padding: 1.5rem 1.25rem 3rem;
 }
 
+.app-footer {
+  text-align: center;
+  padding: .75rem 1rem 1.25rem;
+}
+.footer-gh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .78rem;
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  opacity: .6;
+  transition: opacity .15s;
+}
+.footer-gh-link:hover { opacity: 1; }
+.gh-icon { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+
 /* ── Views ───────────────────────────────────────────────── */
 .view { display: none; }
 .view.active { display: block; }
