@@ -1141,6 +1141,25 @@ Views.builder = {
     Views.builder.renderDeckList();
   },
 
+  async saveAsCopy() {
+    const draft = State.bld.draft;
+    if (!draft) return;
+    const baseName = (document.getElementById('deck-name-input').value.trim() || draft.name || 'Untitled Deck');
+    const copy = JSON.parse(JSON.stringify(draft));
+    copy.id        = genId();
+    copy.name      = `Copy of ${baseName}`;
+    copy.createdAt = new Date().toISOString();
+    copy.rows      = copy.rows.filter(r => {
+      const q = r.question; const c = r.correctAnswer;
+      const qOk = q.type === 'image' ? q.src : q.type === 'local-image' ? q.name : q.text;
+      const cOk = c.type === 'image' ? c.src : c.type === 'local-image' ? c.name : c.text;
+      return qOk && cOk;
+    });
+    if (!copy.rows.length) { Toast.show('No complete questions to copy', 'warning'); return; }
+    await Storage.saveDataset(copy);
+    Toast.show(`Saved as "${copy.name}" (${copy.rows.length} questions)`, 'success');
+  },
+
   exportCSV() {
     const draft = State.bld.draft;
     if (!draft || !draft.rows.length) { Toast.show('Nothing to export', 'warning'); return; }
@@ -1737,11 +1756,12 @@ function wireEvents() {
   document.getElementById('btn-export-xlsx').addEventListener('click', () => DataExport.downloadXLSX());
 
   // ── Builder view ──
-  document.getElementById('btn-new-deck').addEventListener('click',     () => Views.builder.newDeck());
-  document.getElementById('btn-builder-add-q').addEventListener('click',() => Views.builder.addQuestion());
-  document.getElementById('btn-builder-save').addEventListener('click', () => Views.builder.save());
-  document.getElementById('btn-builder-export').addEventListener('click',() => Views.builder.exportCSV());
-  document.getElementById('btn-builder-close').addEventListener('click',() => Views.builder.closeEditor());
+  document.getElementById('btn-new-deck').addEventListener('click',       () => Views.builder.newDeck());
+  document.getElementById('btn-builder-add-q').addEventListener('click',  () => Views.builder.addQuestion());
+  document.getElementById('btn-builder-save').addEventListener('click',   () => Views.builder.save());
+  document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
+  document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.exportCSV());
+  document.getElementById('btn-builder-close').addEventListener('click',  () => Views.builder.closeEditor());
 
   // ── Flashcard view ──
   document.getElementById('fc-card').addEventListener('click', () => Views.flashcards.flip());
