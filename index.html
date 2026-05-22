@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>FlashQuiz</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ── TOP NAV ─────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-icon">⚡</span>
+      <span class="brand-name">FlashQuiz</span>
+    </div>
+    <nav class="app-nav" id="app-nav">
+      <button class="nav-btn" data-view="home">Home</button>
+      <button class="nav-btn" data-view="data">Data</button>
+      <button class="nav-btn" data-view="flashcards">Flashcards</button>
+      <button class="nav-btn" data-view="quiz">Quiz</button>
+      <button class="nav-btn" data-view="builder">Builder</button>
+      <button class="nav-btn" data-view="reports">Reports</button>
+      <button class="nav-btn nav-user" data-view="users" id="nav-user-btn">
+        <span class="user-icon">👤</span>
+        <span id="nav-user-name">Anonymous</span>
+      </button>
+    </nav>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ── HOME ──────────────────────────────────────────── -->
+    <section id="view-home" class="view active">
+      <div class="home-hero">
+        <h1>⚡ FlashQuiz</h1>
+        <p class="hero-sub">Master any subject with smart flashcards &amp; quizzes</p>
+        <div id="home-greeting" class="home-greeting"></div>
+      </div>
+      <div class="home-grid">
+        <button class="home-card" data-view="flashcards">
+          <span class="hc-icon">🃏</span>
+          <span class="hc-title">Flashcards</span>
+          <span class="hc-desc">Review with flip cards</span>
+        </button>
+        <button class="home-card" data-view="quiz">
+          <span class="hc-icon">✏️</span>
+          <span class="hc-title">Take a Quiz</span>
+          <span class="hc-desc">Test your knowledge</span>
+        </button>
+        <button class="home-card" data-view="data">
+          <span class="hc-icon">📂</span>
+          <span class="hc-title">Load Data</span>
+          <span class="hc-desc">Import CSV or Excel files</span>
+        </button>
+        <button class="home-card" data-view="builder">
+          <span class="hc-icon">🔨</span>
+          <span class="hc-title">Quiz Builder</span>
+          <span class="hc-desc">Create your own decks</span>
+        </button>
+        <button class="home-card" data-view="reports">
+          <span class="hc-icon">📊</span>
+          <span class="hc-title">Reports</span>
+          <span class="hc-desc">View your progress</span>
+        </button>
+        <button class="home-card" data-view="users">
+          <span class="hc-icon">👥</span>
+          <span class="hc-title">Users</span>
+          <span class="hc-desc">Manage profiles</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USERS ──────────────────────────────────────────── -->
+    <section id="view-users" class="view">
+      <div class="view-header">
+        <h2>User Profiles</h2>
+      </div>
+      <div class="card users-form-card">
+        <h3>Add New User</h3>
+        <div class="input-row">
+          <input type="text" id="new-user-input" placeholder="Enter name…" maxlength="50" autocomplete="off">
+          <button id="btn-add-user" class="btn btn-primary">Add User</button>
+        </div>
+        <button id="btn-anon" class="btn btn-ghost mt-1">Continue as Anonymous</button>
+      </div>
+      <div id="users-list" class="users-list"></div>
+    </section>
+
+    <!-- ── DATA ───────────────────────────────────────────── -->
+    <section id="view-data" class="view">
+      <div class="view-header">
+        <h2>Data Management</h2>
+      </div>
+
+      <div class="card">
+        <h3>Import a Dataset</h3>
+        <p class="text-muted">Columns: <strong>Question</strong>, <strong>Correct Answer</strong>, Wrong Answer 1, Wrong Answer 2…</p>
+        <p class="text-muted">Image cells: use a URL starting with <code>http</code>, a data URI, or <code>[IMG:url]</code></p>
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" hidden>
+          <div id="upload-idle">
+            <div class="upload-icon">📤</div>
+            <p>Drop a <strong>CSV</strong> or <strong>Excel</strong> file here<br>or <button class="link-btn" id="btn-browse">browse</button></p>
+          </div>
+          <div id="upload-working" class="hidden">
+            <div class="spinner"></div>
+            <p id="upload-status-text">Loading…</p>
+          </div>
+        </div>
+        <div class="export-row">
+          <button id="btn-export-csv" class="btn btn-secondary">⬇ Sample CSV</button>
+          <button id="btn-export-xlsx" class="btn btn-secondary">⬇ Sample Excel</button>
+        </div>
+      </div>
+
+      <h3 class="section-label">Your Datasets</h3>
+      <div id="datasets-list" class="datasets-list"></div>
+    </section>
+
+    <!-- ── BUILDER ─────────────────────────────────────────── -->
+    <section id="view-builder" class="view">
+      <div class="view-header">
+        <h2>Quiz Builder</h2>
+        <button id="btn-new-deck" class="btn btn-primary">+ New Deck</button>
+      </div>
+      <div id="builder-deck-list" class="builder-deck-list"></div>
+
+      <!-- editor panel (hidden until a deck is open) -->
+      <div id="builder-editor" class="builder-editor hidden">
+        <div class="builder-editor-header card">
+          <input type="text" id="deck-name-input" class="deck-name-input" placeholder="Deck name…" maxlength="80">
+          <div class="builder-header-btns">
+            <button id="btn-builder-add-q" class="btn btn-primary">+ Add Question</button>
+            <button id="btn-builder-export" class="btn btn-secondary">⬇ Export CSV</button>
+            <button id="btn-builder-save" class="btn btn-success">💾 Save Deck</button>
+            <button id="btn-builder-close" class="btn btn-ghost">✕ Close</button>
+          </div>
+        </div>
+        <div id="builder-questions-list" class="builder-questions-list"></div>
+      </div>
+    </section>
+
+    <!-- ── FLASHCARDS ─────────────────────────────────────── -->
+    <section id="view-flashcards" class="view">
+      <!-- step 1: pick a deck -->
+      <div id="fc-selector" class="dataset-selector">
+        <h2>Choose a Deck</h2>
+        <div id="fc-deck-list" class="deck-picker-list"></div>
+      </div>
+
+      <!-- step 2: play -->
+      <div id="fc-player" class="fc-player hidden">
+        <div class="fc-top-bar">
+          <button id="btn-fc-exit" class="btn btn-ghost">← Back</button>
+          <span id="fc-progress" class="fc-progress"></span>
+          <button id="btn-fc-restart" class="btn btn-ghost">↺ Restart</button>
+        </div>
+
+        <div class="fc-arena">
+          <div class="fc-card" id="fc-card" tabindex="0" role="button" aria-label="Flip card">
+            <div class="fc-card-inner" id="fc-card-inner">
+              <div class="fc-face fc-front">
+                <div class="fc-label-badge">Question</div>
+                <div class="fc-content" id="fc-front-content"></div>
+                <div class="fc-hint">Click or press <kbd>Space</kbd> to reveal</div>
+              </div>
+              <div class="fc-face fc-back">
+                <div class="fc-label-badge fc-back-badge">Answer</div>
+                <div class="fc-content" id="fc-back-content"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fc-nav-bar">
+          <button id="btn-fc-prev" class="btn btn-secondary" aria-label="Previous card">← Prev</button>
+          <div id="fc-dots" class="fc-dots"></div>
+          <button id="btn-fc-next" class="btn btn-primary" aria-label="Next card">Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── QUIZ ───────────────────────────────────────────── -->
+    <section id="view-quiz" class="view">
+      <!-- step 1: pick a deck -->
+      <div id="quiz-selector" class="dataset-selector">
+        <h2>Choose a Deck</h2>
+        <div id="quiz-deck-list" class="deck-picker-list"></div>
+      </div>
+
+      <!-- step 2: play -->
+      <div id="quiz-player" class="quiz-player hidden">
+        <div class="quiz-layout">
+          <div class="quiz-main">
+            <div class="quiz-top-bar">
+              <button id="btn-quiz-exit" class="btn btn-ghost">← Back</button>
+              <div class="quiz-score-chip">
+                Score: <span id="qscore-correct">0</span>/<span id="qscore-total">0</span>
+              </div>
+              <span id="quiz-round-badge" class="round-badge">Round 1</span>
+            </div>
+
+            <div class="quiz-question-card card">
+              <div class="question-meta" id="quiz-q-meta"></div>
+              <div class="question-content" id="quiz-q-content"></div>
+            </div>
+
+            <div class="quiz-choices" id="quiz-choices"></div>
+
+            <div id="quiz-feedback" class="quiz-feedback hidden">
+              <div id="feedback-msg" class="feedback-msg"></div>
+              <div id="feedback-correct-reveal" class="feedback-correct-reveal hidden"></div>
+              <button id="btn-quiz-next" class="btn btn-primary">Next →</button>
+            </div>
+          </div>
+
+          <aside class="quiz-sidebar">
+            <div class="sidebar-label">Progress</div>
+            <div id="quiz-grid" class="quiz-grid"></div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- step 3: summary -->
+      <div id="quiz-summary" class="quiz-summary hidden">
+        <div class="summary-card card">
+          <h2>Quiz Complete! 🎉</h2>
+          <div id="summary-score" class="summary-score"></div>
+          <div id="summary-breakdown" class="summary-breakdown"></div>
+          <div class="summary-actions">
+            <button id="btn-retry-wrong" class="btn btn-primary hidden">↺ Retry Incorrect</button>
+            <button id="btn-quiz-new" class="btn btn-secondary">New Quiz</button>
+            <button id="btn-quiz-home" class="btn btn-ghost">Home</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── REPORTS ────────────────────────────────────────── -->
+    <section id="view-reports" class="view">
+      <div class="view-header">
+        <h2>Reports</h2>
+        <button id="btn-clear-sessions" class="btn btn-danger">Clear History</button>
+      </div>
+      <div class="reports-filters">
+        <select id="rpt-user-filter"><option value="">All Users</option></select>
+        <select id="rpt-dataset-filter"><option value="">All Datasets</option></select>
+        <select id="rpt-mode-filter">
+          <option value="">All Modes</option>
+          <option value="quiz">Quiz</option>
+          <option value="flashcard">Flashcard</option>
+        </select>
+      </div>
+      <div id="reports-list" class="reports-list"></div>
+    </section>
+
+  </main><!-- /app-main -->
+
+  <!-- ── MODAL ──────────────────────────────────────────── -->
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div id="modal-actions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ──────────────────────────────────────────── -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- SheetJS for Excel read/write (CDN; graceful degradation if offline) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="app.js"></script>
+</body>
+</html>
