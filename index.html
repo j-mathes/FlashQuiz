@@ -118,6 +118,20 @@
 
       <h3 class="section-label">Your Datasets</h3>
       <div id="datasets-list" class="datasets-list"></div>
+
+      <!-- Image Library -->
+      <div class="section-label-row">
+        <h3 class="section-label">Image Library</h3>
+        <span id="image-lib-count" class="section-label-meta"></span>
+      </div>
+      <div class="card image-lib-card">
+        <p class="text-muted">Store images locally and reference them in datasets with <code>[LOCAL:filename]</code> in CSV/Excel, or pick them from the builder.</p>
+        <div class="image-lib-actions">
+          <button id="btn-upload-images" class="btn btn-primary">+ Upload Images</button>
+          <input type="file" id="image-lib-input" accept="image/*" multiple hidden>
+        </div>
+        <div id="image-lib-grid" class="image-lib-grid"></div>
+      </div>
     </section>
 
     <!-- ── BUILDER ─────────────────────────────────────────── -->

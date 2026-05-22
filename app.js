@@ -10,8 +10,9 @@
 // ============================================================
 const APP_VERSION  = '1.0.0';
 const DB_NAME      = 'FlashQuizDB';
-const DB_VERSION   = 1;
+const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
+const STORE_IMGS   = 'images';
 
 // ============================================================
 // UTILITIES
@@ -54,6 +55,10 @@ function parseCell(value) {
   const imgTag = v.match(/^\[IMG:(.*)\]$/i);
   if (imgTag) return { type: 'image', src: imgTag[1].trim() };
 
+  // [LOCAL:name] – reference to the local Image Library
+  const localTag = v.match(/^\[LOCAL:(.*)\]$/i);
+  if (localTag) return { type: 'local-image', name: localTag[1].trim() };
+
   // bare URL – treat as image when it looks like one (sample data pattern)
   if (/^https?:\/\/\S+$/i.test(v)) return { type: 'image', src: v };
 
@@ -79,6 +84,35 @@ function renderCell(cell, container) {
       container.appendChild(err);
     };
     container.appendChild(img);
+  } else if (cell.type === 'local-image') {
+    // Show a placeholder, then async-swap once the image resolves from the library
+    const ph = document.createElement('span');
+    ph.className   = 'local-img-placeholder';
+    ph.textContent = `⏳ ${cell.name}`;
+    container.appendChild(ph);
+    Storage.getImage(cell.name).then(imgRec => {
+      if (!container.contains(ph)) return;
+      container.innerHTML = '';
+      if (imgRec) {
+        const el = document.createElement('img');
+        el.src       = imgRec.src;
+        el.alt       = cell.name;
+        el.className = 'cell-image';
+        el.onerror   = () => {
+          el.remove();
+          const err = document.createElement('div');
+          err.className   = 'image-error';
+          err.textContent = `⚠ Image error: ${cell.name}`;
+          container.appendChild(err);
+        };
+        container.appendChild(el);
+      } else {
+        const err = document.createElement('div');
+        err.className   = 'image-error';
+        err.textContent = `⚠ Library image not found: ${cell.name}`;
+        container.appendChild(err);
+      }
+    });
   } else {
     container.textContent = cell.text;
   }
@@ -88,6 +122,7 @@ function renderCell(cell, container) {
 function cellLabel(cell) {
   if (!cell) return '';
   if (cell.type === 'image') return '🖼 [Image]';
+  if (cell.type === 'local-image') return `🖼 [${cell.name}]`;
   return cell.text;
 }
 
@@ -175,6 +210,9 @@ const Storage = (() => {
         if (!db.objectStoreNames.contains(STORE_DS)) {
           db.createObjectStore(STORE_DS, { keyPath: 'id' });
         }
+        if (!db.objectStoreNames.contains(STORE_IMGS)) {
+          db.createObjectStore(STORE_IMGS, { keyPath: 'name' });
+        }
       };
       req.onsuccess = e => { _db = e.target.result; res(); };
       req.onerror   = () => rej(req.error);
@@ -196,6 +234,21 @@ const Storage = (() => {
   }
   function getDatasetMetas() { return lsGet('ds_meta', []); }
 
+  // ── Image Library ──────────────────────────────────────────
+  async function saveImage(name, src) {
+    return idbPut(STORE_IMGS, { name, src, uploadedAt: new Date().toISOString() });
+  }
+  async function getImage(name)    { return idbGet(STORE_IMGS, name); }
+  async function deleteImage(name) { return idbDel(STORE_IMGS, name); }
+  async function getAllImages() {
+    return new Promise((res, rej) => {
+      if (!_db) { res([]); return; }
+      const req = idbTx(STORE_IMGS, 'readonly').getAll();
+      req.onsuccess = () => res((req.result || []).sort((a, b) => a.name.localeCompare(b.name)));
+      req.onerror   = () => rej(req.error);
+    });
+  }
+
   function getUsers()         { return lsGet('users', []); }
   function saveUsers(u)       { lsSet('users', u); }
   function getCurrentUser()   { return lsGet('cur_user', null); }
@@ -207,6 +260,7 @@ const Storage = (() => {
 
   return {
     initDB, saveDataset, getDataset, deleteDataset, getDatasetMetas,
+    saveImage, getImage, deleteImage, getAllImages,
     getUsers, saveUsers, getCurrentUser, setCurrentUser,
     getSessions, addSession, clearSessions,
     lsGet, lsSet, lsDel
@@ -424,7 +478,8 @@ const DataExport = {
     const rows = ds.rows.map(r => {
       const toCell = c => {
         if (!c) return '';
-        if (c.type === 'image') return c.src;
+        if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
+        if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
         return c.text;
       };
       return [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
@@ -441,6 +496,26 @@ const DataExport = {
     URL.revokeObjectURL(url);
   }
 };
+
+// ============================================================
+// RESOLVE LOCAL IMAGES
+// ============================================================
+async function resolveCellImg(cell) {
+  if (!cell || cell.type !== 'local-image') return cell;
+  const imgRec = await Storage.getImage(cell.name);
+  return imgRec
+    ? { type: 'image', src: imgRec.src }
+    : { type: 'text', text: `⚠ Missing library image: ${cell.name}` };
+}
+
+async function resolveLocalImages(rows) {
+  return Promise.all(rows.map(async r => ({
+    ...r,
+    question:      await resolveCellImg(r.question),
+    correctAnswer: await resolveCellImg(r.correctAnswer),
+    wrongAnswers:  await Promise.all(r.wrongAnswers.map(resolveCellImg))
+  })));
+}
 
 // ============================================================
 // SHARED: DATASET PICKER
@@ -555,7 +630,7 @@ Views.users = {
 // VIEW: DATA
 // ============================================================
 Views.data = {
-  onEnter() { Views.data.renderList(); },
+  onEnter() { Views.data.renderList(); Views.data.renderImageLib(); },
   renderList() {
     const list  = document.getElementById('datasets-list');
     const metas = Storage.getDatasetMetas();
@@ -629,6 +704,59 @@ Views.data = {
         }
       });
     });
+  },
+
+  async renderImageLib() {
+    const grid  = document.getElementById('image-lib-grid');
+    if (!grid) return;
+    const count  = document.getElementById('image-lib-count');
+    const images = await Storage.getAllImages();
+    if (count) count.textContent = images.length
+      ? `${images.length} image${images.length !== 1 ? 's' : ''} stored`
+      : '';
+    grid.innerHTML = '';
+    if (!images.length) {
+      grid.innerHTML = '<div class="empty-state" style="padding:1rem"><p>No images yet. Click <strong>+ Upload Images</strong>.</p></div>';
+      return;
+    }
+    images.forEach(img => {
+      const item = document.createElement('div');
+      item.className = 'image-lib-item';
+      item.innerHTML = `
+        <img src="${esc(img.src)}" alt="${esc(img.name)}" class="image-lib-thumb">
+        <span class="image-lib-name" title="${esc(img.name)}">${esc(img.name)}</span>
+        <button class="btn btn-danger image-lib-del" data-name="${esc(img.name)}" title="Remove">&#x2715;</button>`;
+      grid.appendChild(item);
+    });
+    grid.querySelectorAll('.image-lib-del').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const name = btn.dataset.name;
+        Modal.confirm('Remove Image', `Remove "${name}" from the library?`, async () => {
+          await Storage.deleteImage(name);
+          Views.data.renderImageLib();
+          Toast.show(`"${name}" removed`, 'info');
+        }, 'Remove', 'btn-danger');
+      });
+    });
+  },
+
+  async uploadImages(files) {
+    let added = 0, skipped = 0;
+    for (const file of [...files]) {
+      if (!file.type.startsWith('image/')) { skipped++; continue; }
+      if (file.size > 5 * 1024 * 1024) {
+        Toast.show(`"${file.name}" exceeds 5 MB – skipped`, 'warning');
+        skipped++;
+        continue;
+      }
+      const src = await fileToDataURI(file);
+      await Storage.saveImage(file.name, src);
+      added++;
+    }
+    if (added)   Toast.show(`${added} image${added !== 1 ? 's' : ''} added to library`, 'success');
+    if (skipped) Toast.show(`${skipped} file${skipped !== 1 ? 's' : ''} skipped`, 'warning');
+    Views.data.renderImageLib();
   },
 
   async handleFile(file) {
@@ -812,28 +940,56 @@ Views.builder = {
       row.correctAnswer = { type: 'text', text: caText.value };
     });
 
+    // helper – find-or-create a preview img after a reference element
+    const setPreview = (refSel, previewRole, src) => {
+      let p = card.querySelector(`[data-role="${previewRole}"]`);
+      if (p) { p.src = src; }
+      else {
+        p = Object.assign(document.createElement('img'), { src, className: 'builder-img-preview' });
+        p.dataset.role = previewRole;
+        card.querySelector(refSel).after(p);
+      }
+    };
+    const clearLocalTag = prefix => {
+      const t = card.querySelector(`.${prefix}-lib-tag`); if (t) t.remove();
+    };
+    const setLocalTag = (prefix, name) => {
+      clearLocalTag(prefix);
+      const t = document.createElement('span');
+      t.className   = `local-img-tag ${prefix}-lib-tag`;
+      t.textContent = `📚 ${name}`;
+      card.querySelector(`[data-role="${prefix}-img"]`).closest('.builder-field-row').after(t);
+    };
+
     card.querySelector('[data-role="q-img"]').addEventListener('click', () =>
       Views.builder.pickImage(uri => {
         row.question = { type: 'image', src: uri };
-        const p = card.querySelector('[data-role="q-img-preview"]');
-        if (p) { p.src = uri; } else {
-          const img = Object.assign(document.createElement('img'), { src: uri, className: 'builder-img-preview' });
-          img.dataset.role = 'q-img-preview';
-          card.querySelector('[data-role="q-img"]').after(img);
-        }
+        setPreview('[data-role="q-img"]', 'q-img-preview', uri);
+        clearLocalTag('q');
         card.querySelector('.q-text').value = '';
       })
     );
-
+    card.querySelector('[data-role="q-lib"]').addEventListener('click', () =>
+      Views.builder.pickFromLibrary((src, name) => {
+        row.question = { type: 'image', src, fromLibrary: name };
+        setPreview('[data-role="q-lib"]', 'q-img-preview', src);
+        setLocalTag('q', name);
+        card.querySelector('.q-text').value = '';
+      })
+    );
     card.querySelector('[data-role="ca-img"]').addEventListener('click', () =>
       Views.builder.pickImage(uri => {
         row.correctAnswer = { type: 'image', src: uri };
-        const p = card.querySelector('[data-role="ca-img-preview"]');
-        if (p) { p.src = uri; } else {
-          const img = Object.assign(document.createElement('img'), { src: uri, className: 'builder-img-preview' });
-          img.dataset.role = 'ca-img-preview';
-          card.querySelector('[data-role="ca-img"]').after(img);
-        }
+        setPreview('[data-role="ca-img"]', 'ca-img-preview', uri);
+        clearLocalTag('ca');
+        card.querySelector('.ca-text').value = '';
+      })
+    );
+    card.querySelector('[data-role="ca-lib"]').addEventListener('click', () =>
+      Views.builder.pickFromLibrary((src, name) => {
+        row.correctAnswer = { type: 'image', src, fromLibrary: name };
+        setPreview('[data-role="ca-lib"]', 'ca-img-preview', src);
+        setLocalTag('ca', name);
         card.querySelector('.ca-text').value = '';
       })
     );
@@ -867,6 +1023,24 @@ Views.builder = {
         });
       });
     });
+    card.querySelectorAll('[data-role="wrong-lib"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wi = parseInt(btn.dataset.wi, 10);
+        Views.builder.pickFromLibrary((src, name) => {
+          row.wrongAnswers[wi] = { type: 'image', src, fromLibrary: name };
+          const section = card.querySelector(`.wrong-answer-row[data-wi="${wi}"]`);
+          let p = section.querySelector('img');
+          if (p) { p.src = src; } else {
+            p = Object.assign(document.createElement('img'), { src, className: 'builder-img-preview' });
+            btn.after(p);
+          }
+          let tag = section.querySelector('.wrong-lib-tag');
+          if (!tag) { tag = document.createElement('span'); tag.className = 'local-img-tag wrong-lib-tag'; p.after(tag); }
+          tag.textContent = `📚 ${name}`;
+          section.querySelector('.wrong-text').value = '';
+        });
+      });
+    });
 
     card.querySelectorAll('[data-role="del-wrong"]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -880,6 +1054,25 @@ Views.builder = {
       row.wrongAnswers.push({ type: 'text', text: '' });
       Views.builder.renderQuestions();
     });
+  },
+
+  async pickFromLibrary(onPick) {
+    const images = await Storage.getAllImages();
+    if (!images.length) {
+      Toast.show('No images in library. Upload some on the Data page first.', 'warning', 4000);
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'image-lib-grid image-lib-picker';
+    images.forEach(img => {
+      const btn = document.createElement('button');
+      btn.className = 'image-lib-pick-btn';
+      btn.innerHTML = `<img src="${esc(img.src)}" class="image-lib-thumb" alt="${esc(img.name)}">
+        <span class="image-lib-name">${esc(img.name)}</span>`;
+      btn.addEventListener('click', () => { Modal.hide(); onPick(img.src, img.name); });
+      grid.appendChild(btn);
+    });
+    Modal.show({ title: '📚 Pick from Library', body: grid, buttons: [{ label: 'Cancel' }] });
   },
 
   pickImage(onPick) {
@@ -936,7 +1129,9 @@ Views.builder = {
     // filter empty rows
     draft.rows = draft.rows.filter(r => {
       const q = r.question; const c = r.correctAnswer;
-      return (q.type === 'image' ? q.src : q.text) && (c.type === 'image' ? c.src : c.text);
+      const qOk = q.type === 'image' ? q.src : q.type === 'local-image' ? q.name : q.text;
+      const cOk = c.type === 'image' ? c.src : c.type === 'local-image' ? c.name : c.text;
+      return qOk && cOk;
     });
 
     await Storage.saveDataset(draft);
@@ -986,7 +1181,7 @@ Views.flashcards = {
     if (!ds) { Toast.show('Could not load dataset', 'error'); return; }
 
     State.fc.datasetId = datasetId;
-    State.fc.questions = shuffle(ds.rows);
+    State.fc.questions = shuffle(await resolveLocalImages(ds.rows));
     State.fc.idx       = 0;
     State.fc.flipped   = false;
 
@@ -1109,9 +1304,10 @@ Views.quiz = {
       return;
     }
 
+    const resolvedRows = await resolveLocalImages(ds.rows);
     State.qz = {
       datasetId, datasetName: ds.name,
-      questions: ds.rows.filter(r => r.wrongAnswers.length > 0),
+      questions: resolvedRows.filter(r => r.wrongAnswers.length > 0),
       pool: [], idx: 0,
       results: [], allAttempts: [],
       score: { correct: 0, total: 0 },
@@ -1597,6 +1793,15 @@ function wireEvents() {
   document.getElementById('btn-retry-wrong').addEventListener('click', () => Views.quiz.retryWrong());
   document.getElementById('btn-quiz-new').addEventListener('click',    () => Views.quiz.onEnter());
   document.getElementById('btn-quiz-home').addEventListener('click',   () => Router.navigate('home'));
+
+  // ── Image Library ──
+  document.getElementById('btn-upload-images').addEventListener('click', () => {
+    document.getElementById('image-lib-input').click();
+  });
+  document.getElementById('image-lib-input').addEventListener('change', e => {
+    if (e.target.files.length) Views.data.uploadImages(e.target.files);
+    e.target.value = '';
+  });
 
   // ── Reports view ──
   document.getElementById('rpt-user-filter').addEventListener('change',    () => Views.reports.render());
