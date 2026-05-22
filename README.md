@@ -44,7 +44,8 @@ Any cell can contain an image instead of text. Supported formats:
 | Bare URL | `https://example.com/image.jpg` |
 | Explicit tag | `[IMG:https://example.com/image.jpg]` |
 | Base64 data URI | `data:image/png;base64,…` |
-
+| Local Library reference | `[LOCAL:filename.jpg]` |
+| Mixed (text + image) | `[IMG:url]` on first line, text on remaining lines (image before); or text first, `[IMG:url]` last (image after) |
 > A bare `http://…` or `https://…` URL that occupies an entire cell is automatically treated as an image. This matches the sample volleyball quiz format (which used TinyPic URLs — those images are now dead, but the app handles broken images gracefully).
 
 ### Sample File
@@ -74,9 +75,19 @@ Click **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a 
 
 ### Quiz Builder
 - Create and edit decks directly in the app
-- Each question supports text **or** an uploaded image (≤ 2 MB → stored as base64)
+- Each question/answer field supports **text**, an **uploaded image** (≤ 2 MB → stored as base64), or a **library pick** (📚) that references the Image Library
+- Type text **and** pick an image in the same field to create a mixed cell; a **Before text / After text** toggle controls which comes first
 - Add multiple wrong answers per question
-- **⬇ Export CSV** saves the deck to a file you can re-import later
+- **💾 Save Deck** — overwrites the existing deck in place
+- **📋 Save as Copy** — saves a new independent copy named `"Copy of …"` without touching the original
+- **⬇ Export CSV** — downloads the deck as a `.csv` (library picks are serialised as `[LOCAL:name]` tags so they re-import correctly)
+
+### Image Library
+- Upload images once to a persistent local library (up to 5 MB each) from the **Data** page
+- Images are stored in IndexedDB by filename
+- Reference them in the builder with the 📚 **Pick from Library** button, or in raw CSV/Excel with a `[LOCAL:filename]` cell
+- Delete individual images from the library at any time
+- Useful for decks that share the same images, or for replacing broken online URLs with local copies
 
 ### Users
 - Add named profiles to track sessions separately
@@ -96,9 +107,10 @@ Click **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a 
 | Data | Storage |
 |---|---|
 | Datasets (questions + any embedded images) | **IndexedDB** |
+| Image Library (uploaded local images) | **IndexedDB** |
 | Users, sessions, dataset metadata | **localStorage** |
 
-Both are browser-local. No data leaves the device. IndexedDB is used for datasets because embedded base-64 images can be large; everything else fits comfortably in localStorage.
+Both are browser-local. No data leaves the device. IndexedDB is used for datasets and the image library because base-64 images can be large; everything else fits comfortably in localStorage.
 
 ---
 
@@ -108,6 +120,8 @@ Works in all modern browsers (Chrome, Edge, Firefox, Safari). Requires ES6+ supp
 
 ---
 
-## About the Sample Volleyball Quiz
+## License
 
-The included `Sample Quiz/Volleyball Canada 2017-2018 Rules Multiple Choice Test.xlsx` file has 278 questions. Rows 39–71 have TinyPic image URLs in column A — those images are no longer available since TinyPic shut down. The app displays a "⚠ Image unavailable" notice for those rows. To restore them, open the deck in the **Builder**, replace the dead URLs with working image URLs, and save.
+This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+© 2026 Jared Mathes — see [LICENSE](LICENSE) for full terms.

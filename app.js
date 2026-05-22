@@ -59,6 +59,21 @@ function parseCell(value) {
   const localTag = v.match(/^\[LOCAL:(.*)\]$/i);
   if (localTag) return { type: 'local-image', name: localTag[1].trim() };
 
+  // Mixed: [IMG:url] or [LOCAL:name] on first/last line, rest is text
+  const lines = v.split('\n').map(l => l.trim()).filter(l => l);
+  if (lines.length >= 2) {
+    const fImg   = lines[0].match(/^\[IMG:(.*)\]$/i);
+    const fLocal = lines[0].match(/^\[LOCAL:(.*)\]$/i);
+    const lImg   = lines[lines.length - 1].match(/^\[IMG:(.*)\]$/i);
+    const lLocal = lines[lines.length - 1].match(/^\[LOCAL:(.*)\]$/i);
+    const rest0  = lines.slice(1).join('\n');
+    const restN  = lines.slice(0, -1).join('\n');
+    if (fImg)   return { type: 'mixed', src: fImg[1].trim(),         text: rest0, imgPosition: 'before' };
+    if (fLocal) return { type: 'mixed', localImage: fLocal[1].trim(), text: rest0, imgPosition: 'before' };
+    if (lImg)   return { type: 'mixed', src: lImg[1].trim(),         text: restN, imgPosition: 'after' };
+    if (lLocal) return { type: 'mixed', localImage: lLocal[1].trim(), text: restN, imgPosition: 'after' };
+  }
+
   // bare URL – treat as image when it looks like one (sample data pattern)
   if (/^https?:\/\/\S+$/i.test(v)) return { type: 'image', src: v };
 
@@ -113,6 +128,28 @@ function renderCell(cell, container) {
         container.appendChild(err);
       }
     });
+  } else if (cell.type === 'mixed') {
+    const img = document.createElement('img');
+    img.src       = cell.src;
+    img.alt       = cell.text || '';
+    img.className = 'cell-image';
+    img.onerror   = () => {
+      img.remove();
+      const err = document.createElement('div');
+      err.className   = 'image-error';
+      err.textContent = '⚠ Image unavailable';
+      container.appendChild(err);
+    };
+    const txt = document.createElement('p');
+    txt.className   = 'cell-mixed-text';
+    txt.textContent = cell.text;
+    if (cell.imgPosition === 'after') {
+      container.appendChild(txt);
+      container.appendChild(img);
+    } else {
+      container.appendChild(img);
+      container.appendChild(txt);
+    }
   } else {
     container.textContent = cell.text;
   }
@@ -123,6 +160,7 @@ function cellLabel(cell) {
   if (!cell) return '';
   if (cell.type === 'image') return '🖼 [Image]';
   if (cell.type === 'local-image') return `🖼 [${cell.name}]`;
+  if (cell.type === 'mixed') return `🖼 ${cell.text}`;
   return cell.text;
 }
 
@@ -479,6 +517,11 @@ const DataExport = {
       const toCell = c => {
         if (!c) return '';
         if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
+        if (c.type === 'mixed') {
+          const imgPart = c.fromLibrary ? `[LOCAL:${c.fromLibrary}]`
+            : (c.localImage ? `[LOCAL:${c.localImage}]` : `[IMG:${c.src}]`);
+          return c.imgPosition === 'after' ? `${c.text}\n${imgPart}` : `${imgPart}\n${c.text}`;
+        }
         if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
         return c.text;
       };
@@ -501,11 +544,19 @@ const DataExport = {
 // RESOLVE LOCAL IMAGES
 // ============================================================
 async function resolveCellImg(cell) {
-  if (!cell || cell.type !== 'local-image') return cell;
-  const imgRec = await Storage.getImage(cell.name);
-  return imgRec
-    ? { type: 'image', src: imgRec.src }
-    : { type: 'text', text: `⚠ Missing library image: ${cell.name}` };
+  if (!cell) return cell;
+  if (cell.type === 'local-image') {
+    const imgRec = await Storage.getImage(cell.name);
+    return imgRec
+      ? { type: 'image', src: imgRec.src }
+      : { type: 'text', text: `⚠ Missing library image: ${cell.name}` };
+  }
+  if (cell.type === 'mixed' && cell.localImage) {
+    const imgRec = await Storage.getImage(cell.localImage);
+    if (!imgRec) return { type: 'text', text: `${cell.text} [⚠ Missing: ${cell.localImage}]` };
+    return { ...cell, src: imgRec.src, localImage: undefined };
+  }
+  return cell;
 }
 
 async function resolveLocalImages(rows) {
@@ -882,13 +933,33 @@ Views.builder = {
     card.className   = 'builder-q-card';
     card.dataset.rowId = row.id;
 
-    const wrongHtml = row.wrongAnswers.map((w, wi) => `
+    const q  = row.question      || { type: 'text', text: '' };
+    const ca = row.correctAnswer || { type: 'text', text: '' };
+    const qText  = (q.type  === 'text' || q.type  === 'mixed') ? esc(q.text  || '') : '';
+    const caText = (ca.type === 'text' || ca.type === 'mixed') ? esc(ca.text || '') : '';
+    const qHasImg  = q.type  === 'image' || q.type  === 'mixed';
+    const caHasImg = ca.type === 'image' || ca.type === 'mixed';
+    const qPos  = q.imgPosition  === 'after' ? 'after' : 'before';
+    const caPos = ca.imgPosition === 'after' ? 'after' : 'before';
+
+    const wrongHtml = row.wrongAnswers.map((w, wi) => {
+      const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
+      const wh = w.type === 'image' || w.type === 'mixed';
+      const wp = w.imgPosition === 'after' ? 'after' : 'before';
+      return `
       <div class="wrong-answer-row" data-wi="${wi}">
-        <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}…">${w.type === 'text' ? esc(w.text) : ''}</textarea>
-        <button class="builder-img-btn" title="Add/change image" data-role="wrong-img" data-wi="${wi}">🖼</button>
-        ${w.type === 'image' ? `<img src="${esc(w.src)}" class="builder-img-preview">` : ''}
+        <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}…">${wt}</textarea>
+        <button class="builder-img-btn" title="Upload image" data-role="wrong-img" data-wi="${wi}">🖼</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="wrong-lib" data-wi="${wi}">📚</button>
+        ${wh ? `<img src="${esc(w.src)}" class="builder-img-preview" data-role="wrong-img-preview-${wi}">` : ''}
+        <div class="img-pos-row${w.type === 'mixed' ? '' : ' hidden'}" data-role="wrong-pos-row-${wi}">
+          <span class="img-pos-label">Image:</span>
+          <button class="img-pos-opt${wp !== 'after' ? ' active' : ''}" data-role="wrong-pos-before-${wi}">Before text</button>
+          <button class="img-pos-opt${wp === 'after' ? ' active' : ''}" data-role="wrong-pos-after-${wi}">After text</button>
+        </div>
         <button class="btn btn-ghost" data-role="del-wrong" data-wi="${wi}" title="Remove this wrong answer">✕</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     card.innerHTML = `
       <div class="builder-q-card-header">
@@ -898,17 +969,31 @@ Views.builder = {
 
       <div class="builder-field-label">Question</div>
       <div class="builder-field-row">
-        <textarea class="q-text" rows="2" placeholder="Question text…">${row.question && row.question.type === 'text' ? esc(row.question.text) : ''}</textarea>
-        <button class="builder-img-btn" title="Add/change image" data-role="q-img">🖼</button>
+        <textarea class="q-text" rows="2" placeholder="Question text…">${qText}</textarea>
+        <button class="builder-img-btn" title="Upload image" data-role="q-img">🖼</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="q-lib">📚</button>
       </div>
-      ${row.question && row.question.type === 'image' ? `<img src="${esc(row.question.src)}" class="builder-img-preview" data-role="q-img-preview">` : ''}
+      ${qHasImg ? `<img src="${esc(q.src)}" class="builder-img-preview" data-role="q-img-preview">` : ''}
+      ${q.type === 'local-image' ? `<span class="local-img-tag q-lib-tag">📚 ${esc(q.name)}</span>` : ''}
+      <div class="img-pos-row${q.type === 'mixed' ? '' : ' hidden'}" data-role="q-pos-row">
+        <span class="img-pos-label">Image:</span>
+        <button class="img-pos-opt${qPos !== 'after' ? ' active' : ''}" data-role="q-pos-before">Before text</button>
+        <button class="img-pos-opt${qPos === 'after' ? ' active' : ''}" data-role="q-pos-after">After text</button>
+      </div>
 
       <div class="builder-field-label" style="margin-top:.6rem">Correct Answer</div>
       <div class="builder-field-row">
-        <textarea class="ca-text" rows="2" placeholder="Correct answer…">${row.correctAnswer && row.correctAnswer.type === 'text' ? esc(row.correctAnswer.text) : ''}</textarea>
-        <button class="builder-img-btn" title="Add/change image" data-role="ca-img">🖼</button>
+        <textarea class="ca-text" rows="2" placeholder="Correct answer…">${caText}</textarea>
+        <button class="builder-img-btn" title="Upload image" data-role="ca-img">🖼</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="ca-lib">📚</button>
       </div>
-      ${row.correctAnswer && row.correctAnswer.type === 'image' ? `<img src="${esc(row.correctAnswer.src)}" class="builder-img-preview" data-role="ca-img-preview">` : ''}
+      ${caHasImg ? `<img src="${esc(ca.src)}" class="builder-img-preview" data-role="ca-img-preview">` : ''}
+      ${ca.type === 'local-image' ? `<span class="local-img-tag ca-lib-tag">📚 ${esc(ca.name)}</span>` : ''}
+      <div class="img-pos-row${ca.type === 'mixed' ? '' : ' hidden'}" data-role="ca-pos-row">
+        <span class="img-pos-label">Image:</span>
+        <button class="img-pos-opt${caPos !== 'after' ? ' active' : ''}" data-role="ca-pos-before">Before text</button>
+        <button class="img-pos-opt${caPos === 'after' ? ' active' : ''}" data-role="ca-pos-after">After text</button>
+      </div>
 
       <div class="wrong-answers-section">
         <div class="builder-field-label" style="margin-top:.6rem">Wrong Answers</div>
@@ -930,81 +1015,96 @@ Views.builder = {
       });
     });
 
-    const qText = card.querySelector('.q-text');
-    qText.addEventListener('input', () => {
-      row.question = { type: 'text', text: qText.value };
-    });
-
-    const caText = card.querySelector('.ca-text');
-    caText.addEventListener('input', () => {
-      row.correctAnswer = { type: 'text', text: caText.value };
-    });
-
-    // helper – find-or-create a preview img after a reference element
-    const setPreview = (refSel, previewRole, src) => {
-      let p = card.querySelector(`[data-role="${previewRole}"]`);
+    // ── helpers ───────────────────────────────────────────────
+    const setImgPreview = (role, src, insertAfterEl) => {
+      let p = card.querySelector(`[data-role="${role}"]`);
       if (p) { p.src = src; }
       else {
         p = Object.assign(document.createElement('img'), { src, className: 'builder-img-preview' });
-        p.dataset.role = previewRole;
-        card.querySelector(refSel).after(p);
+        p.dataset.role = role;
+        if (insertAfterEl) insertAfterEl.after(p);
+      }
+      return p;
+    };
+
+    const updatePosRow = (posRowRole, beforeRole, afterRole, cell) => {
+      const el = card.querySelector(`[data-role="${posRowRole}"]`);
+      if (!el) return;
+      const isMixed = cell && cell.type === 'mixed';
+      el.classList.toggle('hidden', !isMixed);
+      if (isMixed) {
+        const b = el.querySelector(`[data-role="${beforeRole}"]`);
+        const a = el.querySelector(`[data-role="${afterRole}"]`);
+        if (b) b.classList.toggle('active', cell.imgPosition !== 'after');
+        if (a) a.classList.toggle('active', cell.imgPosition === 'after');
       }
     };
-    const clearLocalTag = prefix => {
-      const t = card.querySelector(`.${prefix}-lib-tag`); if (t) t.remove();
-    };
-    const setLocalTag = (prefix, name) => {
-      clearLocalTag(prefix);
-      const t = document.createElement('span');
-      t.className   = `local-img-tag ${prefix}-lib-tag`;
-      t.textContent = `📚 ${name}`;
-      card.querySelector(`[data-role="${prefix}-img"]`).closest('.builder-field-row').after(t);
-    };
 
-    card.querySelector('[data-role="q-img"]').addEventListener('click', () =>
-      Views.builder.pickImage(uri => {
-        row.question = { type: 'image', src: uri };
-        setPreview('[data-role="q-img"]', 'q-img-preview', uri);
-        clearLocalTag('q');
-        card.querySelector('.q-text').value = '';
-      })
-    );
-    card.querySelector('[data-role="q-lib"]').addEventListener('click', () =>
-      Views.builder.pickFromLibrary((src, name) => {
-        row.question = { type: 'image', src, fromLibrary: name };
-        setPreview('[data-role="q-lib"]', 'q-img-preview', src);
-        setLocalTag('q', name);
-        card.querySelector('.q-text').value = '';
-      })
-    );
-    card.querySelector('[data-role="ca-img"]').addEventListener('click', () =>
-      Views.builder.pickImage(uri => {
-        row.correctAnswer = { type: 'image', src: uri };
-        setPreview('[data-role="ca-img"]', 'ca-img-preview', uri);
-        clearLocalTag('ca');
-        card.querySelector('.ca-text').value = '';
-      })
-    );
-    card.querySelector('[data-role="ca-lib"]').addEventListener('click', () =>
-      Views.builder.pickFromLibrary((src, name) => {
-        row.correctAnswer = { type: 'image', src, fromLibrary: name };
-        setPreview('[data-role="ca-lib"]', 'ca-img-preview', src);
-        setLocalTag('ca', name);
-        card.querySelector('.ca-text').value = '';
-      })
-    );
+    // ── wire a fixed field (question or correctAnswer) ────────
+    const wireField = (prefix, textSel, getF, setF) => {
+      const textEl   = card.querySelector(textSel);
+      const fieldRow = () => card.querySelector(`[data-role="${prefix}-img"]`).closest('.builder-field-row');
+      const upPos    = c => updatePosRow(`${prefix}-pos-row`, `${prefix}-pos-before`, `${prefix}-pos-after`, c);
 
-    card.querySelectorAll('[data-role="wrong-text-input"]').forEach((ta, wi) => {
-      ta.addEventListener('input', () => {
-        row.wrongAnswers[wi] = { type: 'text', text: ta.value };
+      textEl.addEventListener('input', () => {
+        const t = textEl.value, cur = getF();
+        const hasImg = cur && (cur.type === 'image' || cur.type === 'mixed') && cur.src;
+        setF(hasImg
+          ? (t ? { type:'mixed', src:cur.src, fromLibrary:cur.fromLibrary, text:t, imgPosition:cur.imgPosition||'before' }
+               : { type:'image', src:cur.src, fromLibrary:cur.fromLibrary })
+          : { type:'text', text:t });
+        upPos(getF());
       });
-    });
 
-    // wire wrong answer text live
+      card.querySelector(`[data-role="${prefix}-img"]`).addEventListener('click', () =>
+        Views.builder.pickImage(uri => {
+          const cur = getF(), t = textEl.value;
+          setF(t ? { type:'mixed', text:t, src:uri, imgPosition:(cur&&cur.imgPosition)||'before' }
+                 : { type:'image', src:uri });
+          setImgPreview(`${prefix}-img-preview`, uri, fieldRow());
+          const tag = card.querySelector(`.${prefix}-lib-tag`); if (tag) tag.remove();
+          upPos(getF());
+        })
+      );
+
+      card.querySelector(`[data-role="${prefix}-lib"]`).addEventListener('click', () =>
+        Views.builder.pickFromLibrary((src, name) => {
+          const cur = getF(), t = textEl.value;
+          setF(t ? { type:'mixed', text:t, src, fromLibrary:name, imgPosition:(cur&&cur.imgPosition)||'before' }
+                 : { type:'image', src, fromLibrary:name });
+          const p = setImgPreview(`${prefix}-img-preview`, src, fieldRow());
+          const oldTag = card.querySelector(`.${prefix}-lib-tag`); if (oldTag) oldTag.remove();
+          const tag = document.createElement('span');
+          tag.className = `local-img-tag ${prefix}-lib-tag`; tag.textContent = `📚 ${name}`;
+          p.after(tag);
+          upPos(getF());
+        })
+      );
+
+      card.querySelector(`[data-role="${prefix}-pos-before"]`).addEventListener('click', () => {
+        const cur = getF();
+        if (cur && cur.type === 'mixed') { setF({...cur, imgPosition:'before'}); upPos(getF()); }
+      });
+      card.querySelector(`[data-role="${prefix}-pos-after"]`).addEventListener('click', () => {
+        const cur = getF();
+        if (cur && cur.type === 'mixed') { setF({...cur, imgPosition:'after'}); upPos(getF()); }
+      });
+    };
+
+    wireField('q',  '.q-text',  () => row.question,     v => { row.question = v; });
+    wireField('ca', '.ca-text', () => row.correctAnswer, v => { row.correctAnswer = v; });
+
+    // ── wrong answers ─────────────────────────────────────────
     card.querySelectorAll('.wrong-text').forEach(ta => {
       ta.addEventListener('input', () => {
         const wi = parseInt(ta.closest('[data-wi]').dataset.wi, 10);
-        if (row.wrongAnswers[wi]) row.wrongAnswers[wi] = { type: 'text', text: ta.value };
+        const t = ta.value, cur = row.wrongAnswers[wi];
+        const hasImg = cur && (cur.type === 'image' || cur.type === 'mixed') && cur.src;
+        row.wrongAnswers[wi] = hasImg
+          ? (t ? { type:'mixed', src:cur.src, fromLibrary:cur.fromLibrary, text:t, imgPosition:cur.imgPosition||'before' }
+               : { type:'image', src:cur.src, fromLibrary:cur.fromLibrary })
+          : { type:'text', text:t };
+        updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
       });
     });
 
@@ -1012,33 +1112,52 @@ Views.builder = {
       btn.addEventListener('click', () => {
         const wi = parseInt(btn.dataset.wi, 10);
         Views.builder.pickImage(uri => {
-          row.wrongAnswers[wi] = { type: 'image', src: uri };
           const section = card.querySelector(`.wrong-answer-row[data-wi="${wi}"]`);
-          let p = section.querySelector('img');
-          if (p) { p.src = uri; } else {
-            p = Object.assign(document.createElement('img'), { src: uri, className: 'builder-img-preview' });
-            btn.after(p);
-          }
-          section.querySelector('.wrong-text').value = '';
+          const t = section.querySelector('.wrong-text').value, cur = row.wrongAnswers[wi];
+          row.wrongAnswers[wi] = t ? { type:'mixed', text:t, src:uri, imgPosition:(cur&&cur.imgPosition)||'before' }
+                                   : { type:'image', src:uri };
+          setImgPreview(`wrong-img-preview-${wi}`, uri, btn);
+          updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
         });
       });
     });
+
     card.querySelectorAll('[data-role="wrong-lib"]').forEach(btn => {
       btn.addEventListener('click', () => {
         const wi = parseInt(btn.dataset.wi, 10);
         Views.builder.pickFromLibrary((src, name) => {
-          row.wrongAnswers[wi] = { type: 'image', src, fromLibrary: name };
           const section = card.querySelector(`.wrong-answer-row[data-wi="${wi}"]`);
-          let p = section.querySelector('img');
-          if (p) { p.src = src; } else {
-            p = Object.assign(document.createElement('img'), { src, className: 'builder-img-preview' });
-            btn.after(p);
-          }
+          const t = section.querySelector('.wrong-text').value, cur = row.wrongAnswers[wi];
+          row.wrongAnswers[wi] = t ? { type:'mixed', text:t, src, fromLibrary:name, imgPosition:(cur&&cur.imgPosition)||'before' }
+                                   : { type:'image', src, fromLibrary:name };
+          const p = setImgPreview(`wrong-img-preview-${wi}`, src, btn);
           let tag = section.querySelector('.wrong-lib-tag');
           if (!tag) { tag = document.createElement('span'); tag.className = 'local-img-tag wrong-lib-tag'; p.after(tag); }
           tag.textContent = `📚 ${name}`;
-          section.querySelector('.wrong-text').value = '';
+          updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
         });
+      });
+    });
+
+    card.querySelectorAll('[data-role^="wrong-pos-before-"]').forEach(btn => {
+      const wi = parseInt(btn.dataset.role.replace('wrong-pos-before-', ''), 10);
+      btn.addEventListener('click', () => {
+        const cur = row.wrongAnswers[wi];
+        if (cur && cur.type === 'mixed') {
+          row.wrongAnswers[wi] = {...cur, imgPosition:'before'};
+          updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
+        }
+      });
+    });
+
+    card.querySelectorAll('[data-role^="wrong-pos-after-"]').forEach(btn => {
+      const wi = parseInt(btn.dataset.role.replace('wrong-pos-after-', ''), 10);
+      btn.addEventListener('click', () => {
+        const cur = row.wrongAnswers[wi];
+        if (cur && cur.type === 'mixed') {
+          row.wrongAnswers[wi] = {...cur, imgPosition:'after'};
+          updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
+        }
       });
     });
 
@@ -1117,11 +1236,15 @@ Views.builder = {
       if (!row) return;
       const qText  = card.querySelector('.q-text').value.trim();
       const caText = card.querySelector('.ca-text').value.trim();
-      if (row.question.type === 'text' && qText)      row.question      = { type: 'text', text: qText };
-      if (row.correctAnswer.type === 'text' && caText) row.correctAnswer = { type: 'text', text: caText };
+      if (row.question.type === 'text' && qText)       row.question      = { type: 'text', text: qText };
+      if (row.question.type === 'mixed')                row.question      = { ...row.question, text: qText };
+      if (row.correctAnswer.type === 'text' && caText)  row.correctAnswer = { type: 'text', text: caText };
+      if (row.correctAnswer.type === 'mixed')           row.correctAnswer = { ...row.correctAnswer, text: caText };
       card.querySelectorAll('.wrong-text').forEach((ta, wi) => {
-        if (row.wrongAnswers[wi] && row.wrongAnswers[wi].type === 'text') {
-          row.wrongAnswers[wi] = { type: 'text', text: ta.value.trim() };
+        if (row.wrongAnswers[wi]) {
+          const t = ta.value.trim();
+          if (row.wrongAnswers[wi].type === 'text')  row.wrongAnswers[wi] = { type: 'text', text: t };
+          if (row.wrongAnswers[wi].type === 'mixed') row.wrongAnswers[wi] = { ...row.wrongAnswers[wi], text: t };
         }
       });
     });

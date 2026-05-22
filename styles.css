@@ -1094,6 +1094,42 @@ select { cursor: pointer; }
   margin-top: .25rem;
 }
 
+/* mixed cell (text + image together) */
+.cell-mixed-text {
+  margin: .35rem 0 0;
+  font-size: inherit;
+  line-height: 1.4;
+}
+
+/* image position toggle row in builder */
+.img-pos-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .3rem 0 .1rem;
+  flex-wrap: wrap;
+}
+.img-pos-label {
+  font-size: .78rem;
+  color: var(--clr-text-muted);
+}
+.img-pos-opt {
+  font-size: .75rem;
+  padding: .2rem .55rem;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.img-pos-opt:hover { border-color: var(--clr-primary); }
+.img-pos-opt.active {
+  background: var(--clr-primary);
+  border-color: var(--clr-primary);
+  color: #fff;
+}
+
 /* ── Print ─────────────────────────────────────────────────────── */
 @media print {
   .app-header, .hamburger { display: none; }
