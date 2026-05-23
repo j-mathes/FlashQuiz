@@ -49,7 +49,7 @@ Import a **CSV** or **Excel** (`.xlsx` / `.xls`) file. Use **⬇ Sample CSV** or
 
 ### Quiz Builder
 
-Build or edit decks in the app. Each question/answer field supports text, an image, or both.
+Build or edit decks in the app. Each question/answer field supports text, an image, or both. The builder toolbar and deck name field stay **frozen at the top of the page** as you scroll through questions — like frozen rows in a spreadsheet.
 
 #### Adding an image — three ways
 
@@ -83,6 +83,9 @@ When an image is set a **✕ Remove** button appears below the preview. Click it
 #### 🖼 Missing Images filter
 Click **🖼 Missing Images** in the builder toolbar to show only questions where any field (question, correct answer, or a wrong answer) contains a broken image reference — either a `[LOCAL:name]` not found in the Image Library, or an external URL that fails to load. The button shows **🔍 Checking…** while verifying images in parallel, then highlights active. Click again to clear the filter.
 
+#### 🏷 Missing Levels filter
+Click **🏷 Missing Levels** in the builder toolbar to show only questions that have no level assigned, or whose assigned level no longer exists in the deck's defined levels (e.g. after a level was renamed or deleted). Click again to clear the filter. Both the Missing Images and Missing Levels filters can be active at the same time.
+
 #### 🏷 Levels
 Levels let you tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard, Novice / Expert, Chapter 1 / Chapter 2, etc.).
 
@@ -90,7 +93,7 @@ Levels let you tag each question with a difficulty or category badge (e.g. Easy 
 - Add as many levels as you like; give each a name and pick a colour from the colour picker — a live preview badge updates in real time
 - Once levels are defined, every question card shows a small **`+ Level`** badge button next to the question number; click it to pick a level from a compact popover of coloured badges, or clear the assignment
 - If a question has no level assigned (or no levels are defined for the deck), no badge is shown — fully backwards-compatible
-- The level badge appears in the **top bar of flashcards** and alongside the question counter on **quiz questions**; text colour auto-adjusts for readability on the chosen background
+- The level badge appears **inside the question face of flashcards** (alongside the "Question" label) and alongside the question counter on **quiz questions**; text colour auto-adjusts for readability on the chosen background
 
 **Bulk level assignment** — three ways to tag many questions at once:
 

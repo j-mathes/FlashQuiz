@@ -411,6 +411,13 @@ select { cursor: pointer; }
 .builder-deck-item .deck-name { flex: 1; font-weight: 700; }
 
 .builder-editor { margin-top: 1.25rem; }
+.builder-frozen-header {
+  position: sticky;
+  top: var(--nav-height);
+  z-index: 90;
+  background: var(--clr-bg);
+  padding-bottom: .25rem;
+}
 .builder-editor-header {
   display: flex;
   align-items: center;
@@ -727,6 +734,13 @@ select { cursor: pointer; }
   color: #fff;
   transform: rotateY(180deg);
 }
+.fc-card-top {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
 .fc-label-badge {
   font-size: .75rem;
   font-weight: 700;
@@ -736,7 +750,6 @@ select { cursor: pointer; }
   border-radius: var(--radius-full);
   background: var(--clr-bg);
   color: var(--clr-text-muted);
-  margin-bottom: 1rem;
   flex-shrink: 0;
 }
 .fc-back-badge { background: rgba(255,255,255,.2); color: #fff; }
@@ -943,9 +956,6 @@ button.level-badge {
   border: 1px solid var(--clr-primary);
   border-radius: var(--radius-md);
   margin-bottom: .75rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 .builder-bulk-bar.hidden { display: none; }
 .bulk-count {

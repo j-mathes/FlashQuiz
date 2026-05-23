@@ -397,7 +397,7 @@ const State = {
     startedAt: null,
   },
   // builder
-  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, selectedIds: new Set(), lastCheckedId: null }
+  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, filterMissingLevels: false, selectedIds: new Set(), lastCheckedId: null }
 };
 // levels are stored on State.fc.levels / State.qz.levels when a deck is loaded
 
@@ -1134,12 +1134,15 @@ Views.builder = {
   openEditor(ds) {
     State.bld.editingId = ds.id;
     State.bld.draft = JSON.parse(JSON.stringify(ds)); // deep clone
-    State.bld.filterMissingImgs = false;
-    State.bld.missingImgIds     = null;
+    State.bld.filterMissingImgs   = false;
+    State.bld.missingImgIds       = null;
+    State.bld.filterMissingLevels = false;
 
     document.getElementById('deck-name-input').value  = ds.name;
     const missingBtn = document.getElementById('btn-builder-missing-imgs');
     if (missingBtn) missingBtn.classList.remove('active');
+    const missingLvBtn = document.getElementById('btn-builder-missing-levels');
+    if (missingLvBtn) missingLvBtn.classList.remove('active');
     const levelsBtn = document.getElementById('btn-builder-levels');
     if (levelsBtn) levelsBtn.classList.remove('active');
     State.bld.selectedIds = new Set();
@@ -1161,13 +1164,25 @@ Views.builder = {
       return;
     }
 
-    const missingIds = State.bld.missingImgIds;
-    const filtered = State.bld.filterMissingImgs
-      ? rows.map((row, idx) => ({ row, idx })).filter(({ row }) => missingIds && missingIds.has(row.id))
-      : rows.map((row, idx) => ({ row, idx }));
+    const missingIds   = State.bld.missingImgIds;
+    const levels        = State.bld.draft.levels || [];
+    const levelNames    = new Set(levels.map(l => l.name));
+
+    let filtered = rows.map((row, idx) => ({ row, idx }));
+    if (State.bld.filterMissingImgs) {
+      filtered = filtered.filter(({ row }) => missingIds && missingIds.has(row.id));
+    }
+    if (State.bld.filterMissingLevels) {
+      filtered = filtered.filter(({ row }) => !row.level || !levelNames.has(row.level));
+    }
 
     if (!filtered.length) {
-      container.innerHTML = `<div class="empty-state"><p>No questions match \u2014 every question has an image. \ud83c\udf89</p></div>`;
+      const reason = State.bld.filterMissingImgs && State.bld.filterMissingLevels
+        ? 'No questions match both filters.'
+        : State.bld.filterMissingImgs
+          ? 'No questions match \u2014 every question has an image. \ud83c\udf89'
+          : 'No questions match \u2014 every question has a level assigned. \ud83c\udf89';
+      container.innerHTML = `<div class="empty-state"><p>${reason}</p></div>`;
       Views.builder.updateBulkBar();
       return;
     }
@@ -2122,13 +2137,13 @@ Views.quiz = {
     State.qz.idx      = idx;
     State.qz.answered = false;
 
+    const row = pool[idx];
+
     document.getElementById('quiz-round-badge').textContent = `Round ${State.qz.round}`;
     document.getElementById('qscore-correct').textContent   = State.qz.score.correct;
     document.getElementById('qscore-total').textContent     = State.qz.score.total;
     document.getElementById('quiz-q-meta').textContent = `Question ${idx + 1} of ${pool.length}`;
     renderLevelBadge(document.getElementById('quiz-level-badge'), row, State.qz.levels);
-
-    const row = pool[idx];
 
     // render question
     const qContent = document.getElementById('quiz-q-content');
@@ -2588,6 +2603,12 @@ function wireEvents() {
 
     btn.disabled    = false;
     btn.textContent = '🖼 Missing Images';
+    Views.builder.renderQuestions();
+  });
+  document.getElementById('btn-builder-missing-levels').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    State.bld.filterMissingLevels = !State.bld.filterMissingLevels;
+    btn.classList.toggle('active', State.bld.filterMissingLevels);
     Views.builder.renderQuestions();
   });
   document.getElementById('btn-builder-save').addEventListener('click',   () => Views.builder.save());
