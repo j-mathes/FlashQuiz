@@ -147,7 +147,13 @@ function renderCell(cell, container) {
     const txt = document.createElement('p');
     txt.className   = 'cell-mixed-text';
     txt.textContent = cell.text;
-    if (cell.imgPosition === 'after') {
+    if (cell.imgPosition === 'inline') {
+      const wrap = document.createElement('div');
+      wrap.className = 'cell-mixed-inline';
+      wrap.appendChild(img);
+      wrap.appendChild(txt);
+      container.appendChild(wrap);
+    } else if (cell.imgPosition === 'after') {
       container.appendChild(txt);
       container.appendChild(img);
     } else {
@@ -1064,23 +1070,24 @@ Views.builder = {
     const caText = (ca.type === 'text' || ca.type === 'mixed') ? esc(ca.text || '') : '';
     const qHasImg  = q.type  === 'image' || q.type  === 'mixed';
     const caHasImg = ca.type === 'image' || ca.type === 'mixed';
-    const qPos  = q.imgPosition  === 'after' ? 'after' : 'before';
-    const caPos = ca.imgPosition === 'after' ? 'after' : 'before';
+    const qPos  = q.imgPosition  || 'before';
+    const caPos = ca.imgPosition || 'before';
 
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
       const wh = w.type === 'image' || w.type === 'mixed';
-      const wp = w.imgPosition === 'after' ? 'after' : 'before';
+      const wp = w.imgPosition || 'before';
       return `
       <div class="wrong-answer-row" data-wi="${wi}">
-        <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}…">${wt}</textarea>
+        <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}\u2026">${wt}</textarea>
         <button class="builder-img-btn" title="Upload image" data-role="wrong-img" data-wi="${wi}">🖼</button>
         <button class="builder-img-btn" title="Pick from library" data-role="wrong-lib" data-wi="${wi}">📚</button>
         ${wh ? `<img src="${esc(w.src)}" class="builder-img-preview" data-role="wrong-img-preview-${wi}">` : ''}
         <div class="img-pos-row${w.type === 'mixed' ? '' : ' hidden'}" data-role="wrong-pos-row-${wi}">
           <span class="img-pos-label">Image:</span>
-          <button class="img-pos-opt${wp !== 'after' ? ' active' : ''}" data-role="wrong-pos-before-${wi}">Before text</button>
-          <button class="img-pos-opt${wp === 'after' ? ' active' : ''}" data-role="wrong-pos-after-${wi}">After text</button>
+          <button class="img-pos-opt${wp === 'before' ? ' active' : ''}" data-role="wrong-pos-before-${wi}">Above</button>
+          <button class="img-pos-opt${wp === 'inline' ? ' active' : ''}" data-role="wrong-pos-inline-${wi}">Inline</button>
+          <button class="img-pos-opt${wp === 'after' ? ' active' : ''}" data-role="wrong-pos-after-${wi}">Below</button>
         </div>
         <button class="btn btn-ghost" data-role="del-wrong" data-wi="${wi}" title="Remove this wrong answer">✕</button>
       </div>`;
@@ -1102,13 +1109,14 @@ Views.builder = {
       ${q.type === 'local-image' ? `<span class="local-img-tag q-lib-tag">📚 ${esc(q.name)}</span>` : ''}
       <div class="img-pos-row${q.type === 'mixed' ? '' : ' hidden'}" data-role="q-pos-row">
         <span class="img-pos-label">Image:</span>
-        <button class="img-pos-opt${qPos !== 'after' ? ' active' : ''}" data-role="q-pos-before">Before text</button>
-        <button class="img-pos-opt${qPos === 'after' ? ' active' : ''}" data-role="q-pos-after">After text</button>
+        <button class="img-pos-opt${qPos === 'before' ? ' active' : ''}" data-role="q-pos-before">Above</button>
+        <button class="img-pos-opt${qPos === 'inline' ? ' active' : ''}" data-role="q-pos-inline">Inline</button>
+        <button class="img-pos-opt${qPos === 'after' ? ' active' : ''}" data-role="q-pos-after">Below</button>
       </div>
 
       <div class="builder-field-label" style="margin-top:.6rem">Correct Answer</div>
       <div class="builder-field-row">
-        <textarea class="ca-text" rows="2" placeholder="Correct answer…">${caText}</textarea>
+        <textarea class="ca-text" rows="2" placeholder="Correct answer\u2026">${caText}</textarea>
         <button class="builder-img-btn" title="Upload image" data-role="ca-img">🖼</button>
         <button class="builder-img-btn" title="Pick from library" data-role="ca-lib">📚</button>
       </div>
@@ -1116,8 +1124,9 @@ Views.builder = {
       ${ca.type === 'local-image' ? `<span class="local-img-tag ca-lib-tag">📚 ${esc(ca.name)}</span>` : ''}
       <div class="img-pos-row${ca.type === 'mixed' ? '' : ' hidden'}" data-role="ca-pos-row">
         <span class="img-pos-label">Image:</span>
-        <button class="img-pos-opt${caPos !== 'after' ? ' active' : ''}" data-role="ca-pos-before">Before text</button>
-        <button class="img-pos-opt${caPos === 'after' ? ' active' : ''}" data-role="ca-pos-after">After text</button>
+        <button class="img-pos-opt${caPos === 'before' ? ' active' : ''}" data-role="ca-pos-before">Above</button>
+        <button class="img-pos-opt${caPos === 'inline' ? ' active' : ''}" data-role="ca-pos-inline">Inline</button>
+        <button class="img-pos-opt${caPos === 'after' ? ' active' : ''}" data-role="ca-pos-after">Below</button>
       </div>
 
       <div class="wrong-answers-section">
@@ -1158,10 +1167,12 @@ Views.builder = {
       const isMixed = cell && cell.type === 'mixed';
       el.classList.toggle('hidden', !isMixed);
       if (isMixed) {
-        const b = el.querySelector(`[data-role="${beforeRole}"]`);
-        const a = el.querySelector(`[data-role="${afterRole}"]`);
-        if (b) b.classList.toggle('active', cell.imgPosition !== 'after');
-        if (a) a.classList.toggle('active', cell.imgPosition === 'after');
+        const pos = cell.imgPosition || 'before';
+        const inlineRole = beforeRole.replace('before', 'inline');
+        [[beforeRole,'before'],[inlineRole,'inline'],[afterRole,'after']].forEach(([role, p]) => {
+          const btn = el.querySelector(`[data-role="${role}"]`);
+          if (btn) btn.classList.toggle('active', pos === p);
+        });
       }
     };
 
@@ -1209,6 +1220,10 @@ Views.builder = {
       card.querySelector(`[data-role="${prefix}-pos-before"]`).addEventListener('click', () => {
         const cur = getF();
         if (cur && cur.type === 'mixed') { setF({...cur, imgPosition:'before'}); upPos(getF()); }
+      });
+      card.querySelector(`[data-role="${prefix}-pos-inline"]`).addEventListener('click', () => {
+        const cur = getF();
+        if (cur && cur.type === 'mixed') { setF({...cur, imgPosition:'inline'}); upPos(getF()); }
       });
       card.querySelector(`[data-role="${prefix}-pos-after"]`).addEventListener('click', () => {
         const cur = getF();
@@ -1270,6 +1285,17 @@ Views.builder = {
         const cur = row.wrongAnswers[wi];
         if (cur && cur.type === 'mixed') {
           row.wrongAnswers[wi] = {...cur, imgPosition:'before'};
+          updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
+        }
+      });
+    });
+
+    card.querySelectorAll('[data-role^="wrong-pos-inline-"]').forEach(btn => {
+      const wi = parseInt(btn.dataset.role.replace('wrong-pos-inline-', ''), 10);
+      btn.addEventListener('click', () => {
+        const cur = row.wrongAnswers[wi];
+        if (cur && cur.type === 'mixed') {
+          row.wrongAnswers[wi] = {...cur, imgPosition:'inline'};
           updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
         }
       });
@@ -1603,6 +1629,7 @@ Views.quiz = {
       results: [], allAttempts: [],
       score: { correct: 0, total: 0 },
       round: 1, answered: false,
+      showCorrect: document.getElementById('quiz-opt-show-correct')?.checked ?? true,
       sessionId: genId(), startedAt: new Date().toISOString()
     };
 
@@ -1703,7 +1730,7 @@ Views.quiz = {
     // style buttons
     document.querySelectorAll('.choice-btn').forEach(b => {
       b.disabled = true;
-      if (b.dataset.correct === '1') b.classList.add('correct');
+      if (State.qz.showCorrect && b.dataset.correct === '1') b.classList.add('correct');
       else if (b === btn && !isCorrect) b.classList.add('wrong');
     });
 
@@ -1715,7 +1742,7 @@ Views.quiz = {
     msgEl.className   = 'feedback-msg ' + (isCorrect ? 'correct' : 'wrong');
     msgEl.textContent = isCorrect ? '✅ Correct!' : '❌ Incorrect';
 
-    if (!isCorrect) {
+    if (!isCorrect && State.qz.showCorrect) {
       revealEl.classList.remove('hidden');
       revealEl.innerHTML = '';
       const label = document.createElement('span');
