@@ -406,6 +406,14 @@ const State = {
 // ============================================================
 const Router = {
   navigate(view) {
+    // Check if the current view wants to intercept navigation
+    const currentActive = document.querySelector('.view.active');
+    const currentView   = currentActive ? currentActive.id.replace('view-', '') : null;
+    if (currentView && currentView !== view && Views[currentView] && Views[currentView].onBeforeLeave) {
+      const proceed = Views[currentView].onBeforeLeave(() => Router.navigate(view));
+      if (proceed === false) return;
+    }
+
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     const el = document.getElementById('view-' + view);
     if (el) el.classList.add('active');
@@ -2224,9 +2232,39 @@ Views.quiz = {
     document.getElementById('quiz-summary').classList.add('hidden');
     document.getElementById('quiz-level-filter').classList.add('hidden');
     document.getElementById('quiz-deck-list').classList.remove('hidden');
+    document.getElementById('btn-quiz-save').classList.add('hidden');
     renderDatasetPicker(document.getElementById('quiz-deck-list'), meta => {
       Views.quiz.showLevelFilter(meta.id, meta.name);
     });
+    Views.quiz.renderResumeCard();
+  },
+
+  // Returns false (blocking navigation) if a quiz is in progress, showing the appropriate modal.
+  // `proceed` is a callback that the modal's confirm action calls to continue navigation.
+  onBeforeLeave(proceed) {
+    if (document.getElementById('quiz-player').classList.contains('hidden')) return true;
+    const user = State.currentUser;
+    if (user) {
+      Modal.show({
+        title: 'Exit Quiz',
+        body: 'Save your progress so you can resume this quiz later?',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit without saving', cls: 'btn-ghost', action: () => { Views.quiz.onEnter(); proceed(); } },
+          { label: '💾 Save & Exit', cls: 'btn-primary', action: () => { Views.quiz.saveProgress(); Views.quiz.onEnter(); proceed(); } }
+        ]
+      });
+    } else {
+      Modal.show({
+        title: 'Exit Quiz',
+        body: "You're playing anonymously — progress cannot be saved. Exit anyway?",
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit anyway', cls: 'btn-warning', action: () => { Views.quiz.onEnter(); proceed(); } }
+        ]
+      });
+    }
+    return false;
   },
 
   async showLevelFilter(datasetId) {
@@ -2272,6 +2310,7 @@ Views.quiz = {
     document.getElementById('quiz-selector').classList.add('hidden');
     document.getElementById('quiz-summary').classList.add('hidden');
     document.getElementById('quiz-player').classList.remove('hidden');
+    document.getElementById('btn-quiz-save').classList.toggle('hidden', !State.currentUser);
 
     Views.quiz.buildGrid();
     Views.quiz.showQuestion(0);
@@ -2481,6 +2520,9 @@ Views.quiz = {
     const existing = Storage.getSessions().filter(s => s.id !== sess.id);
     existing.push(sess);
     Storage.lsSet('sessions', existing);
+    // Quiz is complete — clear any saved progress for this user
+    const progKey = Views.quiz._progressKey();
+    if (progKey) Storage.lsDel(progKey);
   },
 
   retryWrong() {
@@ -2499,6 +2541,130 @@ Views.quiz = {
 
     Views.quiz.buildGrid();
     Views.quiz.showQuestion(0);
+  },
+
+  // ── Progress save / resume ──────────────────────────────────
+
+  _progressKey() {
+    return State.currentUser ? 'quiz_progress_' + State.currentUser.id : null;
+  },
+
+  saveProgress() {
+    const key = Views.quiz._progressKey();
+    if (!key) return;
+    const qz = State.qz;
+    // If the current question was already answered, advance past it so we don't re-ask it on resume.
+    const resumeIdx = qz.answered ? qz.idx + 1 : qz.idx;
+    const snapshot = {
+      userId:           State.currentUser.id,
+      savedAt:          new Date().toISOString(),
+      datasetId:        qz.datasetId,
+      datasetName:      qz.datasetName,
+      levels:           qz.levels,
+      levelFilterLabel: qz.levelFilterLabel || null,
+      questionIds:      qz.questions.map(q => q.id),
+      poolIds:          qz.pool.map(q => q.id),
+      idx:              resumeIdx,
+      roundComplete:    resumeIdx >= qz.pool.length,
+      round:            qz.round,
+      score:            qz.score,
+      results:          qz.results,
+      allAttempts:      qz.allAttempts,
+      showCorrect:      qz.showCorrect,
+      autoRetry:        qz.autoRetry,
+      startedAt:        qz.startedAt,
+      sessionId:        qz.sessionId
+    };
+    Storage.lsSet(key, snapshot);
+    Toast.show('Progress saved', 'success');
+  },
+
+  renderResumeCard() {
+    const card = document.getElementById('quiz-resume-card');
+    const key  = Views.quiz._progressKey();
+    if (!key) { card.classList.add('hidden'); return; }
+    const snap = Storage.lsGet(key, null);
+    if (!snap) { card.classList.add('hidden'); return; }
+
+    document.getElementById('resume-deck-name').textContent = snap.datasetName || 'Unknown';
+    const answered = (snap.results || []).filter(r => {
+      // count only results belonging to the current round's pool
+      return (snap.poolIds || []).includes(r.qId);
+    }).length;
+    const total    = (snap.poolIds || []).length;
+    const pct      = total ? Math.round(answered / total * 100) : 0;
+    const detail   = [
+      `Round ${snap.round}`,
+      `${answered} / ${total} answered (${pct}%)`,
+      snap.levelFilterLabel ? `🏷 ${snap.levelFilterLabel}` : null,
+      `Saved ${fmtDateTime(snap.savedAt)}`
+    ].filter(Boolean).join(' · ');
+    document.getElementById('resume-detail').textContent = detail;
+    card.classList.remove('hidden');
+  },
+
+  async resumeProgress() {
+    const key  = Views.quiz._progressKey();
+    if (!key) return;
+    const snap = Storage.lsGet(key, null);
+    if (!snap) { Toast.show('No saved progress found', 'warning'); return; }
+
+    const ds = await Storage.getDataset(snap.datasetId);
+    if (!ds) {
+      Toast.show('Original dataset no longer available', 'error');
+      Storage.lsDel(key);
+      Views.quiz.renderResumeCard();
+      return;
+    }
+
+    const resolvedRows = await resolveLocalImages(ds.rows);
+    const rowMap = new Map(resolvedRows.map(r => [r.id, r]));
+    const questions = (snap.questionIds || []).map(id => rowMap.get(id)).filter(Boolean);
+    const pool      = (snap.poolIds     || []).map(id => rowMap.get(id)).filter(Boolean);
+
+    if (!questions.length || !pool.length) {
+      Toast.show('Saved progress is incompatible with the current dataset', 'error');
+      Storage.lsDel(key);
+      Views.quiz.renderResumeCard();
+      return;
+    }
+
+    State.qz = {
+      datasetId:        snap.datasetId,
+      datasetName:      snap.datasetName,
+      levels:           snap.levels || [],
+      levelFilterLabel: snap.levelFilterLabel || null,
+      questions, pool,
+      idx:         snap.idx,
+      round:       snap.round,
+      score:       snap.score       || { correct: 0, total: 0 },
+      results:     snap.results     || [],
+      allAttempts: snap.allAttempts || [],
+      answered:    false,
+      showCorrect: snap.showCorrect,
+      autoRetry:   snap.autoRetry,
+      startedAt:   snap.startedAt,
+      sessionId:   snap.sessionId
+    };
+
+    document.getElementById('quiz-selector').classList.add('hidden');
+    document.getElementById('quiz-summary').classList.add('hidden');
+    document.getElementById('quiz-player').classList.remove('hidden');
+    document.getElementById('btn-quiz-save').classList.remove('hidden');
+
+    Views.quiz.buildGrid();
+    // Re-colour squares for already-answered questions in this round
+    const resultMap = new Map(State.qz.results.map(r => [r.qId, r.correct]));
+    State.qz.pool.forEach((q, i) => {
+      if (resultMap.has(q.id)) Views.quiz.updateGridSquare(i, resultMap.get(q.id) ? 'sq-correct' : 'sq-wrong');
+    });
+
+    if (snap.roundComplete || snap.idx >= pool.length) {
+      Views.quiz.endRound();
+    } else {
+      Views.quiz.showQuestion(snap.idx);
+    }
+    Toast.show('Quiz resumed', 'success');
   }
 };
 
@@ -2872,7 +3038,34 @@ function wireEvents() {
 
   // ── Quiz view ──
   document.getElementById('btn-quiz-exit').addEventListener('click', () => {
-    Modal.confirm('Exit Quiz', 'Quit this quiz? Progress will be lost.', () => Views.quiz.onEnter());
+    const user = State.currentUser;
+    if (user) {
+      Modal.show({
+        title: 'Exit Quiz',
+        body: 'Save your progress so you can resume this quiz later?',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit without saving', cls: 'btn-ghost', action: () => Views.quiz.onEnter() },
+          { label: '💾 Save & Exit', cls: 'btn-primary', action: () => { Views.quiz.saveProgress(); Views.quiz.onEnter(); } }
+        ]
+      });
+    } else {
+      Modal.show({
+        title: 'Exit Quiz',
+        body: "You're playing anonymously — progress cannot be saved. Exit anyway?",
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit anyway', cls: 'btn-warning', action: () => Views.quiz.onEnter() }
+        ]
+      });
+    }
+  });
+  document.getElementById('btn-quiz-save').addEventListener('click', () => Views.quiz.saveProgress());
+  document.getElementById('btn-resume-quiz').addEventListener('click', () => Views.quiz.resumeProgress());
+  document.getElementById('btn-discard-resume').addEventListener('click', () => {
+    const key = Views.quiz._progressKey();
+    if (key) Storage.lsDel(key);
+    Views.quiz.renderResumeCard();
   });
   document.getElementById('btn-quiz-next').addEventListener('click', () => {
     Views.quiz.showQuestion(State.qz.idx + 1);

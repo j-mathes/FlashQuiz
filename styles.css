@@ -874,6 +874,24 @@ select { cursor: pointer; }
   border-radius: var(--radius-full);
 }
 
+/* Resume saved-progress card */
+.quiz-resume-card {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  background: var(--clr-primary-light);
+  border: 1.5px solid var(--clr-primary);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.resume-icon { font-size: 1.4rem; flex-shrink: 0; }
+.resume-info { flex: 1; display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.resume-info strong { font-size: .98rem; }
+.resume-info .text-muted { font-size: .8rem; }
+.resume-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
 .quiz-question-card {
   margin-bottom: 1rem;
 }
