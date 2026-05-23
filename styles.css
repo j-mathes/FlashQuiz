@@ -1068,6 +1068,9 @@ select { cursor: pointer; }
   width: 100%;
   box-shadow: var(--shadow-lg);
 }
+.modal-box--wide {
+  max-width: 780px;
+}
 .modal-box h3 { margin-bottom: .5rem; }
 .modal-box p  { margin-bottom: 1rem; }
 #modal-body   { color: var(--clr-text-muted); font-size: .95rem; margin-bottom: .75rem; }
@@ -1268,9 +1271,12 @@ select { cursor: pointer; }
 
 /* Library picker inside modal */
 .image-lib-picker {
-  max-height: 420px;
+  max-height: 520px;
   overflow-y: auto;
   padding: .25rem;
+}
+.modal-box--wide .image-lib-grid {
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
 }
 .image-lib-pick-btn {
   display: flex;

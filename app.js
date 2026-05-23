@@ -409,9 +409,11 @@ const Toast = {
 // MODAL
 // ============================================================
 const Modal = {
-  show({ title, body, buttons = [] }) {
+  show({ title, body, buttons = [], wide = false }) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML   = '';
+    const box = document.querySelector('.modal-box');
+    box.classList.toggle('modal-box--wide', wide);
     if (typeof body === 'string') {
       const p = document.createElement('p');
       p.textContent = body;
@@ -1425,7 +1427,7 @@ Views.builder = {
       });
       container.appendChild(subGrid);
     });
-    Modal.show({ title: '📚 Pick from Library', body: container, buttons: [{ label: 'Cancel' }] });
+    Modal.show({ title: '📚 Pick from Library', body: container, wide: true, buttons: [{ label: 'Cancel' }] });
   },
 
   pickImage(onPick) {
