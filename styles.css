@@ -534,7 +534,7 @@ select { cursor: pointer; }
 .fc-card:focus-visible { outline: 3px solid var(--clr-primary); outline-offset: 4px; border-radius: var(--radius-lg); }
 
 .fc-card-inner {
-  position: relative;
+  display: grid;
   width: 100%;
   min-height: 280px;
   transform-style: preserve-3d;
@@ -543,8 +543,7 @@ select { cursor: pointer; }
 .fc-card.flipped .fc-card-inner { transform: rotateY(180deg); }
 
 .fc-face {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   border-radius: var(--radius-xl);
@@ -625,7 +624,8 @@ select { cursor: pointer; }
   gap: 5px;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: 300px;
+  flex: 1;
+  padding: 0 .5rem;
 }
 .fc-dot {
   width: 8px; height: 8px;
@@ -1007,6 +1007,7 @@ select { cursor: pointer; }
 
   .fc-card { min-height: 220px; }
   .fc-face  { min-height: 220px; padding: 1.25rem 1rem; }
+  .fc-card-inner { min-height: 220px; }
   .fc-content { font-size: 1rem; }
 }
 

@@ -77,6 +77,10 @@ function parseCell(value) {
   // bare URL – treat as image when it looks like one (sample data pattern)
   if (/^https?:\/\/\S+$/i.test(v)) return { type: 'image', src: v };
 
+  // URL at start of cell followed by space+text (legacy inline format)
+  const urlThenText = v.match(/^(https?:\/\/\S+)\s+([\s\S]+)$/i);
+  if (urlThenText) return { type: 'mixed', src: urlThenText[1], text: urlThenText[2].trim(), imgPosition: 'before' };
+
   return { type: 'text', text: v };
 }
 
@@ -1508,9 +1512,7 @@ Views.flashcards = {
     // dots
     const dots = document.getElementById('fc-dots');
     dots.innerHTML = '';
-    const maxDots = 40;
-    const show    = Math.min(qs.length, maxDots);
-    for (let i = 0; i < show; i++) {
+    for (let i = 0; i < qs.length; i++) {
       const d = document.createElement('div');
       d.className = 'fc-dot' + (i === idx ? ' current' : i < idx ? ' seen' : '');
       dots.appendChild(d);
