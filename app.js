@@ -17,6 +17,17 @@ const STORE_IMGS   = 'images';
 // Default palette for auto-assigning level colours
 const LEVEL_COLORS = ['#4a90d9','#27ae60','#e67e22','#8e44ad','#e74c3c','#16a085','#f39c12','#2c3e50'];
 
+// Curated 56-colour palette for the visual colour picker (8 cols × 7 rows)
+const COLOR_PALETTE = [
+  '#000000','#434343','#666666','#999999','#b7b7b7','#cccccc','#e0e0e0','#ffffff',
+  '#7f0000','#cc0000','#ea4335','#ff6d6d','#ff9999','#c2185b','#e91e63','#f8bbd0',
+  '#4a0080','#7b1fa2','#9c27b0','#ba68c8','#7c4dff','#5c35cc','#3949ab','#9fa8da',
+  '#0d47a1','#1565c0','#2196f3','#64b5f6','#006064','#0097a7','#00bcd4','#b2ebf2',
+  '#004d40','#00796b','#009688','#4db6ac','#1b5e20','#388e3c','#4caf50','#a5d6a7',
+  '#33691e','#689f38','#8bc34a','#dcedc8','#f57f17','#f9a825','#ffeb3b','#fff9c4',
+  '#bf360c','#e64a19','#ff5722','#ffab91','#4e342e','#6d4c41','#795548','#d7ccc8',
+];
+
 // Returns '#ffffff' or '#1a1a1a' for readable text on top of a hex colour.
 function contrastColor(hex) {
   const r = parseInt(hex.slice(1,3),16);
@@ -1176,14 +1187,18 @@ Views.builder = {
     const qPos  = q.imgPosition  || 'before';
     const caPos = ca.imgPosition || 'before';
 
-    // Level dropdown (only when the deck has levels defined)
+    // Level picker — compact badge button + mini popover (only when deck has levels)
     const levels = State.bld.draft.levels || [];
-    const levelDropdown = levels.length
-      ? `<select class="level-select" data-role="level-sel" title="Assign a level to this question">
-           <option value="">— No Level —</option>
-           ${levels.map(l => `<option value="${esc(l.name)}" ${row.level === l.name ? 'selected' : ''} style="background:${esc(l.color)};color:${contrastColor(l.color)}">${esc(l.name)}</option>`).join('')}
-         </select>`
-      : '';
+    let levelPickerHtml = '';
+    if (levels.length) {
+      const curLv = levels.find(l => l.name === row.level);
+      const btnHtml = curLv
+        ? `<button class="level-badge level-picker-btn" data-role="level-picker-btn" style="background:${esc(curLv.color)};color:${contrastColor(curLv.color)};display:inline-flex;cursor:pointer" title="Change level">${esc(curLv.name)}</button>`
+        : `<button class="level-picker-btn level-picker-none" data-role="level-picker-btn" title="Assign level">+ Level</button>`;
+      const opts = `<button class="level-picker-opt level-picker-none" data-level="">— None —</button>`
+        + levels.map(l => `<button class="level-picker-opt level-badge" data-level="${esc(l.name)}" style="background:${esc(l.color)};color:${contrastColor(l.color)};display:inline-flex">${esc(l.name)}</button>`).join('');
+      levelPickerHtml = `<div class="level-picker" data-role="level-picker">${btnHtml}<div class="level-picker-pop">${opts}</div></div>`;
+    }
 
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
@@ -1207,8 +1222,10 @@ Views.builder = {
 
     card.innerHTML = `
       <div class="builder-q-card-header">
-        <span class="builder-q-num">Q ${idx + 1}</span>
-        ${levelDropdown}
+        <div class="builder-q-header-left">
+          <span class="builder-q-num">Q ${idx + 1}</span>
+          ${levelPickerHtml}
+        </div>
         <button class="btn btn-danger btn-sm" data-role="del-q">✕ Remove</button>
       </div>
 
@@ -1356,9 +1373,37 @@ Views.builder = {
     wireField('q',  '.q-text',  () => row.question,     v => { row.question = v; });
     wireField('ca', '.ca-text', () => row.correctAnswer, v => { row.correctAnswer = v; });
 
-    // ── level dropdown ────────────────────────────────────────
-    const levelSel = card.querySelector('[data-role="level-sel"]');
-    if (levelSel) levelSel.addEventListener('change', () => { row.level = levelSel.value; });
+    // ── level picker ──────────────────────────────────────────
+    const levelPicker = card.querySelector('[data-role="level-picker"]');
+    if (levelPicker) {
+      const pickerBtn = levelPicker.querySelector('[data-role="level-picker-btn"]');
+      const pop       = levelPicker.querySelector('.level-picker-pop');
+      pickerBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = pop.classList.contains('open');
+        document.querySelectorAll('.level-picker-pop.open').forEach(p => p.classList.remove('open'));
+        if (!isOpen) pop.classList.add('open');
+      });
+      pop.addEventListener('click', e => e.stopPropagation());
+      pop.querySelectorAll('.level-picker-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+          row.level = opt.dataset.level;
+          if (row.level) {
+            const lv = (State.bld.draft.levels || []).find(l => l.name === row.level);
+            if (lv) {
+              pickerBtn.textContent = lv.name;
+              pickerBtn.className   = 'level-badge level-picker-btn';
+              pickerBtn.style.cssText = `background:${lv.color};color:${contrastColor(lv.color)};display:inline-flex;cursor:pointer`;
+            }
+          } else {
+            pickerBtn.textContent = '+ Level';
+            pickerBtn.className   = 'level-picker-btn level-picker-none';
+            pickerBtn.style.cssText = '';
+          }
+          pop.classList.remove('open');
+        });
+      });
+    }
 
     // ── wrong answers ─────────────────────────────────────────
     card.querySelectorAll('.wrong-text').forEach(ta => {
@@ -1618,6 +1663,10 @@ Views.builder = {
     if (!draft) return;
     draft.levels = draft.levels || [];
 
+    const swatchMarkup = COLOR_PALETTE.map(c =>
+      `<button class="clr-swatch" data-color="${c}" style="background:${c}" title="${c}"></button>`
+    ).join('');
+
     const renderRows = () => {
       const container = document.getElementById('levels-rows-container');
       if (!container) return;
@@ -1626,20 +1675,57 @@ Views.builder = {
         const row = document.createElement('div');
         row.className = 'level-row';
         row.innerHTML = `
-          <input type="color" class="level-color-input" value="${esc(lv.color)}" title="Pick colour">
+          <div class="clr-picker-wrap">
+            <button class="clr-swatch-btn" style="background:${esc(lv.color)}" title="Pick colour"></button>
+            <div class="clr-palette-pop" hidden>
+              <div class="clr-palette-grid">${swatchMarkup}</div>
+              <div class="clr-custom-row">
+                <span class="clr-custom-label">Custom:</span>
+                <input type="color" class="clr-custom-input" value="${esc(lv.color)}">
+              </div>
+            </div>
+          </div>
           <input type="text" class="input level-name-input" value="${esc(lv.name)}" placeholder="Level name\u2026" maxlength="40">
           <span class="level-badge" style="background:${esc(lv.color)};color:${contrastColor(lv.color)};display:inline-flex">${esc(lv.name || '?')}</span>
           <button class="btn btn-danger btn-sm" data-del="${i}" title="Remove level">\u2715</button>`;
 
-        const colorIn = row.querySelector('.level-color-input');
-        const nameIn  = row.querySelector('.level-name-input');
-        const badge   = row.querySelector('.level-badge');
+        const swatchBtn = row.querySelector('.clr-swatch-btn');
+        const pop       = row.querySelector('.clr-palette-pop');
+        const customIn  = row.querySelector('.clr-custom-input');
+        const nameIn    = row.querySelector('.level-name-input');
+        const badge     = row.querySelector('.level-badge');
 
-        colorIn.addEventListener('input', () => {
-          lv.color = colorIn.value;
-          badge.style.background = lv.color;
-          badge.style.color = contrastColor(lv.color);
+        const applyColor = color => {
+          lv.color = color;
+          swatchBtn.style.background = color;
+          customIn.value = color;
+          badge.style.background = color;
+          badge.style.color = contrastColor(color);
+        };
+
+        swatchBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const isOpen = !pop.hidden;
+          document.querySelectorAll('.clr-palette-pop').forEach(p => { p.hidden = true; });
+          if (!isOpen) {
+            pop.hidden = false;
+            const rect = swatchBtn.getBoundingClientRect();
+            const popW = 220, popH = 230;
+            let left = rect.left;
+            let top  = rect.bottom + 4;
+            if (left + popW > window.innerWidth  - 8) left = window.innerWidth  - popW - 8;
+            if (top  + popH > window.innerHeight - 8) top  = rect.top - popH - 4;
+            pop.style.left = Math.max(8, left) + 'px';
+            pop.style.top  = Math.max(8, top)  + 'px';
+          }
         });
+        pop.addEventListener('click', e => e.stopPropagation());
+
+        pop.querySelectorAll('.clr-swatch').forEach(s => {
+          s.addEventListener('click', () => { applyColor(s.dataset.color); pop.hidden = true; });
+        });
+        customIn.addEventListener('input', () => applyColor(customIn.value));
+
         nameIn.addEventListener('input', () => {
           lv.name = nameIn.value;
           badge.textContent = lv.name || '?';
@@ -1652,6 +1738,11 @@ Views.builder = {
         container.appendChild(row);
       });
     };
+
+    // Close all palette pops when clicking outside
+    const closeAllPops = () =>
+      document.querySelectorAll('.clr-palette-pop').forEach(p => { p.hidden = true; });
+    document.addEventListener('click', closeAllPops);
 
     const wrap = document.createElement('div');
     wrap.className = 'levels-manager';
@@ -1667,7 +1758,8 @@ Views.builder = {
       title: '\ud83c\udff7 Manage Levels',
       body: wrap,
       wide: true,
-      buttons: [{ label: 'Done', className: 'btn-primary', onClick: () => {
+      buttons: [{ label: 'Done', cls: 'btn-primary', action: () => {
+        document.removeEventListener('click', closeAllPops);
         draft.levels = draft.levels.filter(l => l.name.trim());
         Views.builder.renderQuestions();
         Modal.hide();
@@ -2409,6 +2501,10 @@ function wireEvents() {
   document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
   document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.showExportDialog());
   document.getElementById('btn-builder-levels').addEventListener('click', () => Views.builder.showLevelsDialog());
+  // Close level-picker and colour-palette pops on any outside click
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.level-picker-pop.open').forEach(p => p.classList.remove('open'));
+  });
   document.getElementById('btn-builder-close').addEventListener('click',  () => Views.builder.closeEditor());
 
   // ── Flashcard view ──

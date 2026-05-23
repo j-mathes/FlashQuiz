@@ -439,7 +439,11 @@ select { cursor: pointer; }
   justify-content: space-between;
   margin-bottom: .75rem;
   gap: .5rem;
-  flex-wrap: wrap;
+}
+.builder-q-header-left {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
 }
 .builder-q-num { font-weight: 700; color: var(--clr-text-muted); }
 
@@ -856,15 +860,59 @@ select { cursor: pointer; }
   line-height: 1.5;
   flex-shrink: 0;
 }
-/* Builder level dropdown */
-.level-select {
-  font-size: .8rem;
-  padding: .2rem .4rem;
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius);
-  background: var(--clr-surface);
-  color: var(--clr-text);
+/* Builder level picker — compact badge button + mini popover */
+.level-picker {
+  position: relative;
+}
+button.level-badge {
+  border: none;
+  font-family: inherit;
+}
+.level-picker-none {
+  font-size: .75rem;
+  padding: .15em .5em;
+  border: 1px dashed var(--clr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--clr-text-muted);
   cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.level-picker-pop {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 100;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: .3rem;
+  display: none;
+  flex-direction: column;
+  gap: .25rem;
+  min-width: 90px;
+}
+.level-picker-pop.open {
+  display: flex;
+}
+.level-picker-opt {
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.level-picker-opt.level-badge {
+  padding: .25em .6em;
+}
+.level-picker-opt.level-picker-none {
+  padding: .25em .5em;
+  background: transparent;
+  color: var(--clr-text-muted);
+}
+.level-picker-opt.level-picker-none:hover {
+  background: var(--clr-bg);
 }
 /* Levels-manager modal rows */
 .levels-manager {
@@ -877,10 +925,71 @@ select { cursor: pointer; }
   align-items: center;
   gap: .5rem;
 }
-.level-color-input {
-  width: 36px;
+/* Colour picker button (the coloured square that opens the popover) */
+.clr-picker-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.clr-swatch-btn {
+  width: 32px;
   height: 28px;
-  padding: 2px;
+  border: 2px solid var(--clr-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color .15s;
+}
+.clr-swatch-btn:hover {
+  border-color: var(--clr-primary);
+}
+/* Floating colour palette popover */
+.clr-palette-pop {
+  position: fixed;
+  z-index: 9999;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: .5rem;
+}
+.clr-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: 3px;
+  margin-bottom: .45rem;
+}
+.clr-swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(0,0,0,.18);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform .1s, box-shadow .1s;
+  position: relative;
+}
+.clr-swatch:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px var(--clr-primary);
+  z-index: 1;
+}
+/* Custom colour row at the bottom of the palette */
+.clr-custom-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  border-top: 1px solid var(--clr-border);
+  padding-top: .4rem;
+}
+.clr-custom-label {
+  font-size: .75rem;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+.clr-custom-input {
+  width: 32px;
+  height: 24px;
+  padding: 1px;
   border: 1px solid var(--clr-border);
   border-radius: var(--radius);
   cursor: pointer;

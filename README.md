@@ -88,7 +88,7 @@ Levels let you tag each question with a difficulty or category badge (e.g. Easy 
 
 - Click **🏷 Levels** in the builder toolbar to open the Levels manager
 - Add as many levels as you like; give each a name and pick a colour from the colour picker — a live preview badge updates in real time
-- Once levels are defined, every question card shows a **Level** dropdown so you can tag individual questions
+- Once levels are defined, every question card shows a small **`+ Level`** badge button next to the question number; click it to pick a level from a compact popover of coloured badges, or clear the assignment
 - If a question has no level assigned (or no levels are defined for the deck), no badge is shown — fully backwards-compatible
 - The level badge appears in the **top bar of flashcards** and alongside the question counter on **quiz questions**; text colour auto-adjusts for readability on the chosen background
 
