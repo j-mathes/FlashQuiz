@@ -397,7 +397,7 @@ const State = {
     startedAt: null,
   },
   // builder
-  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null }
+  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, selectedIds: new Set(), lastCheckedId: null }
 };
 // levels are stored on State.fc.levels / State.qz.levels when a deck is loaded
 
@@ -1142,6 +1142,8 @@ Views.builder = {
     if (missingBtn) missingBtn.classList.remove('active');
     const levelsBtn = document.getElementById('btn-builder-levels');
     if (levelsBtn) levelsBtn.classList.remove('active');
+    State.bld.selectedIds = new Set();
+    State.bld.lastCheckedId = null;
     document.getElementById('builder-editor').classList.remove('hidden');
     document.getElementById('builder-deck-list').innerHTML = '';
 
@@ -1155,6 +1157,7 @@ Views.builder = {
 
     if (!rows.length) {
       container.innerHTML = `<div class="empty-state"><p>No questions yet. Click <strong>+ Add Question</strong>.</p></div>`;
+      Views.builder.updateBulkBar();
       return;
     }
 
@@ -1165,12 +1168,47 @@ Views.builder = {
 
     if (!filtered.length) {
       container.innerHTML = `<div class="empty-state"><p>No questions match \u2014 every question has an image. \ud83c\udf89</p></div>`;
+      Views.builder.updateBulkBar();
       return;
     }
 
     filtered.forEach(({ row, idx }) => {
       container.appendChild(Views.builder.makeQuestionCard(row, idx));
     });
+    Views.builder.updateBulkBar();
+  },
+
+  updateBulkBar() {
+    const bar = document.getElementById('builder-bulk-bar');
+    if (!bar) return;
+    const hasLevels = (State.bld.draft?.levels?.length ?? 0) > 0;
+    const count = State.bld.selectedIds.size;
+    bar.classList.toggle('hidden', !hasLevels || count === 0);
+    const countEl = document.getElementById('bulk-count');
+    if (countEl) countEl.textContent = `${count} question${count !== 1 ? 's' : ''} selected`;
+    const pop = document.getElementById('bulk-level-pop');
+    if (pop) {
+      const levels = State.bld.draft?.levels || [];
+      pop.innerHTML = levels.map(l =>
+        `<button class="level-picker-opt level-badge" data-level="${esc(l.name)}" style="background:${esc(l.color)};color:${contrastColor(l.color)};display:inline-flex">${esc(l.name)}</button>`
+      ).join('')
+        + (levels.length ? `<hr class="level-picker-sep">` : '')
+        + `<button class="level-picker-opt level-picker-none" data-level="">\u2014 Clear level \u2014</button>`;
+    }
+  },
+
+  bulkAssignLevel(levelName) {
+    let count = 0;
+    State.bld.draft.rows.forEach(r => {
+      if (State.bld.selectedIds.has(r.id)) { r.level = levelName; count++; }
+    });
+    Views.builder.renderQuestions();
+    Toast.show(
+      levelName
+        ? `Assigned "${levelName}" to ${count} question${count !== 1 ? 's' : ''}`
+        : `Cleared level from ${count} question${count !== 1 ? 's' : ''}`,
+      'success'
+    );
   },
 
   makeQuestionCard(row, idx) {
@@ -1196,7 +1234,7 @@ Views.builder = {
         ? `<button class="level-badge level-picker-btn" data-role="level-picker-btn" style="background:${esc(curLv.color)};color:${contrastColor(curLv.color)};display:inline-flex;cursor:pointer" title="Change level">${esc(curLv.name)}</button>`
         : `<button class="level-picker-btn level-picker-none" data-role="level-picker-btn" title="Assign level">+ Level</button>`;
       const opts = `<button class="level-picker-opt level-picker-none" data-level="">— None —</button>`
-        + levels.map(l => `<button class="level-picker-opt level-badge" data-level="${esc(l.name)}" style="background:${esc(l.color)};color:${contrastColor(l.color)};display:inline-flex">${esc(l.name)}</button>`).join('');
+        + levels.map(l => `<div class="level-picker-row"><button class="level-picker-opt level-badge" data-level="${esc(l.name)}" style="background:${esc(l.color)};color:${contrastColor(l.color)};display:inline-flex">${esc(l.name)}</button><button class="level-picker-bulk" data-level="${esc(l.name)}" data-bulk="all" title="Assign to all questions">all</button><button class="level-picker-bulk" data-level="${esc(l.name)}" data-bulk="untagged" title="Assign to questions with no level">untagged</button></div>`).join('');
       levelPickerHtml = `<div class="level-picker" data-role="level-picker">${btnHtml}<div class="level-picker-pop">${opts}</div></div>`;
     }
 
@@ -1223,6 +1261,7 @@ Views.builder = {
     card.innerHTML = `
       <div class="builder-q-card-header">
         <div class="builder-q-header-left">
+          ${(State.bld.draft?.levels?.length ?? 0) > 0 ? `<input type="checkbox" class="q-select-cb" title="Select (Shift+click for range)" ${State.bld.selectedIds.has(row.id) ? 'checked' : ''}>` : ''}
           <span class="builder-q-num">Q ${idx + 1}</span>
           ${levelPickerHtml}
         </div>
@@ -1278,6 +1317,33 @@ Views.builder = {
         Views.builder.renderQuestions();
       });
     });
+
+    // ── question select checkbox (supports Shift+click range) ──────
+    const cb = card.querySelector('.q-select-cb');
+    if (cb) {
+      cb.addEventListener('click', e => {
+        if (e.shiftKey && State.bld.lastCheckedId !== null) {
+          const allCards = Array.from(document.querySelectorAll('.builder-q-card'));
+          const thisIdx  = allCards.indexOf(card);
+          const lastCard = allCards.find(c => c.dataset.rowId === State.bld.lastCheckedId);
+          const lastIdx  = lastCard ? allCards.indexOf(lastCard) : thisIdx;
+          const lo = Math.min(thisIdx, lastIdx), hi = Math.max(thisIdx, lastIdx);
+          allCards.slice(lo, hi + 1).forEach(c => {
+            const cbox = c.querySelector('.q-select-cb');
+            if (cbox) {
+              cbox.checked = cb.checked;
+              if (cb.checked) State.bld.selectedIds.add(c.dataset.rowId);
+              else            State.bld.selectedIds.delete(c.dataset.rowId);
+            }
+          });
+        } else {
+          if (cb.checked) State.bld.selectedIds.add(row.id);
+          else            State.bld.selectedIds.delete(row.id);
+        }
+        State.bld.lastCheckedId = row.id;
+        Views.builder.updateBulkBar();
+      });
+    }
 
     // ── helpers ───────────────────────────────────────────────
     const setImgPreview = (role, src, insertAfterEl) => {
@@ -1401,6 +1467,17 @@ Views.builder = {
             pickerBtn.style.cssText = '';
           }
           pop.classList.remove('open');
+        });
+      });
+      pop.querySelectorAll('.level-picker-bulk').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const lv = btn.dataset.level;
+          const isAll = btn.dataset.bulk === 'all';
+          let count = 0;
+          State.bld.draft.rows.forEach(r => { if (isAll || !r.level) { r.level = lv; count++; } });
+          Views.builder.renderQuestions();
+          pop.classList.remove('open');
+          Toast.show(`Assigned "${lv}" to ${count} question${count !== 1 ? 's' : ''}`, 'success');
         });
       });
     }
@@ -1687,6 +1764,8 @@ Views.builder = {
           </div>
           <input type="text" class="input level-name-input" value="${esc(lv.name)}" placeholder="Level name\u2026" maxlength="40">
           <span class="level-badge" style="background:${esc(lv.color)};color:${contrastColor(lv.color)};display:inline-flex">${esc(lv.name || '?')}</span>
+          <button class="btn btn-ghost btn-sm lv-assign-btn" data-assign-bulk="all" title="Assign this level to all questions">All Qs</button>
+          <button class="btn btn-ghost btn-sm lv-assign-btn" data-assign-bulk="untagged" title="Assign to questions with no level currently">Untagged</button>
           <button class="btn btn-danger btn-sm" data-del="${i}" title="Remove level">\u2715</button>`;
 
         const swatchBtn = row.querySelector('.clr-swatch-btn');
@@ -1733,6 +1812,20 @@ Views.builder = {
         row.querySelector('[data-del]').addEventListener('click', () => {
           draft.levels.splice(i, 1);
           renderRows();
+        });
+        row.querySelector('[data-assign-bulk="all"]').addEventListener('click', () => {
+          if (!lv.name.trim()) { Toast.show('Give this level a name first', 'warning'); return; }
+          State.bld.draft.rows.forEach(r => { r.level = lv.name; });
+          Toast.show(`Assigned "${lv.name}" to all ${State.bld.draft.rows.length} questions`, 'success');
+        });
+        row.querySelector('[data-assign-bulk="untagged"]').addEventListener('click', () => {
+          if (!lv.name.trim()) { Toast.show('Give this level a name first', 'warning'); return; }
+          let count = 0;
+          State.bld.draft.rows.forEach(r => { if (!r.level) { r.level = lv.name; count++; } });
+          Toast.show(
+            count ? `Assigned "${lv.name}" to ${count} untagged question${count !== 1 ? 's' : ''}` : 'No untagged questions',
+            count ? 'success' : 'info'
+          );
         });
 
         container.appendChild(row);
@@ -2501,7 +2594,37 @@ function wireEvents() {
   document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
   document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.showExportDialog());
   document.getElementById('btn-builder-levels').addEventListener('click', () => Views.builder.showLevelsDialog());
-  // Close level-picker and colour-palette pops on any outside click
+
+  // ── Bulk selection bar ────────────────────────────────────────────────
+  document.getElementById('bulk-level-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const pop = document.getElementById('bulk-level-pop');
+    const isOpen = pop.classList.contains('open');
+    document.querySelectorAll('.level-picker-pop.open').forEach(p => p.classList.remove('open'));
+    if (!isOpen) pop.classList.add('open');
+  });
+  document.getElementById('bulk-level-pop').addEventListener('click', e => {
+    const opt = e.target.closest('[data-level]');
+    if (!opt) return;
+    e.stopPropagation();
+    Views.builder.bulkAssignLevel(opt.dataset.level);
+    document.getElementById('bulk-level-pop').classList.remove('open');
+  });
+  document.getElementById('bulk-clear-levels').addEventListener('click', () => Views.builder.bulkAssignLevel(''));
+  document.getElementById('bulk-select-all').addEventListener('click', () => {
+    document.querySelectorAll('.builder-q-card').forEach(c => {
+      State.bld.selectedIds.add(c.dataset.rowId);
+      const cb = c.querySelector('.q-select-cb');
+      if (cb) cb.checked = true;
+    });
+    Views.builder.updateBulkBar();
+  });
+  document.getElementById('bulk-deselect').addEventListener('click', () => {
+    State.bld.selectedIds = new Set();
+    document.querySelectorAll('.q-select-cb').forEach(cb => { cb.checked = false; });
+    Views.builder.updateBulkBar();
+  });
+  // Close any open level-picker or colour-palette pops on outside click
   document.addEventListener('click', () => {
     document.querySelectorAll('.level-picker-pop.open').forEach(p => p.classList.remove('open'));
   });

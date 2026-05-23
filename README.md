@@ -92,6 +92,17 @@ Levels let you tag each question with a difficulty or category badge (e.g. Easy 
 - If a question has no level assigned (or no levels are defined for the deck), no badge is shown — fully backwards-compatible
 - The level badge appears in the **top bar of flashcards** and alongside the question counter on **quiz questions**; text colour auto-adjusts for readability on the chosen background
 
+**Bulk level assignment** — three ways to tag many questions at once:
+
+1. **Checkboxes + action bar** — when levels are defined a checkbox appears on each question card; check one, then **Shift+click** another to select the whole range. A sticky action bar appears above the list showing the selection count and offering:
+   - **Assign Level ▾** — pick a level to apply to all selected questions
+   - **Clear Levels** — remove level tags from all selected questions
+   - **Select All** / **Deselect All**
+
+2. **Per-level picker shortcuts** — inside each question's level picker popover, two mini buttons appear alongside each level badge: **`all`** (tag every question in the deck with that level) and **`untagged`** (tag only questions that have no level yet)
+
+3. **Levels manager shortcuts** — inside the Levels manager each level row has **`All Qs`** and **`Untagged`** buttons with the same behaviour as above
+
 **Data format** — when a deck has levels the exported CSV/Excel file gains a `Level` column as the first column; the header row starts with `Level, Question, Correct Answer, …`; import the same format back into FlashQuiz and levels are restored automatically (colours are assigned from the default palette on import and can be re-customised in the builder).
 
 #### Saving & exporting

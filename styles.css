@@ -879,6 +879,33 @@ button.level-badge {
   white-space: nowrap;
   font-family: inherit;
 }
+/* Row inside picker pop: badge + "all" + "untagged" bulk buttons */
+.level-picker-row {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+.level-picker-bulk {
+  font-size: .65rem;
+  padding: .1em .35em;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  background: var(--clr-bg);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.level-picker-bulk:hover {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  border-color: var(--clr-primary);
+}
+.level-picker-sep {
+  border: none;
+  border-top: 1px solid var(--clr-border);
+  margin: .2rem 0;
+}
 .level-picker-pop {
   position: absolute;
   top: calc(100% + 3px);
@@ -896,6 +923,46 @@ button.level-badge {
 }
 .level-picker-pop.open {
   display: flex;
+}
+/* Question select checkbox */
+.q-select-cb {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--clr-primary);
+  flex-shrink: 0;
+}
+/* Bulk action bar (appears above questions list when ≥1 question selected) */
+.builder-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .45rem .75rem;
+  background: var(--clr-primary-light);
+  border: 1px solid var(--clr-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: .75rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.builder-bulk-bar.hidden { display: none; }
+.bulk-count {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--clr-primary);
+  white-space: nowrap;
+}
+.bulk-bar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--clr-border);
+  flex-shrink: 0;
+}
+/* "All Qs" / "Untagged" assign buttons in the Levels manager dialog */
+.lv-assign-btn {
+  font-size: .72rem;
 }
 .level-picker-opt {
   text-align: left;
