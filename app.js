@@ -1685,10 +1685,25 @@ Views.quiz = {
 
     // build answer choices (correct + up to 3 wrong, shuffled)
     const wrongs   = shuffle(row.wrongAnswers).slice(0, 3);
-    const choices  = shuffle([
+    let choices  = shuffle([
       { cell: row.correctAnswer, isCorrect: true },
       ...wrongs.map(w => ({ cell: w, isCorrect: false }))
     ]);
+
+    // True/False detection: if exactly 2 choices and they look like T/F, put True first
+    const tfTrue  = /^(true|t|yes|correct)$/i;
+    const tfFalse = /^(false|f|no|incorrect)$/i;
+    if (choices.length === 2) {
+      const labels = choices.map(c => (c.cell.text || '').trim());
+      if (labels.some(l => tfTrue.test(l)) && labels.some(l => tfFalse.test(l))) {
+        choices.sort((a, b) => {
+          const at = (a.cell.text || '').trim(), bt = (b.cell.text || '').trim();
+          if (tfTrue.test(at)) return -1;
+          if (tfTrue.test(bt)) return  1;
+          return 0;
+        });
+      }
+    }
 
     const choicesEl = document.getElementById('quiz-choices');
     choicesEl.innerHTML = '';
