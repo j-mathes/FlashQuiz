@@ -576,6 +576,20 @@ select { cursor: pointer; }
 }
 .bhm-btn-active { border-color: var(--clr-primary); background: var(--clr-primary-light); }
 .bhm-btn-danger  { border-color: var(--clr-error); background: var(--clr-error-bg); color: var(--clr-error); font-size: .72rem; }
+.builder-help-note { font-size: .74rem; color: var(--clr-text-muted); margin: .4rem 0 .15rem; font-style: italic; }
+.bhm-code {
+  font-family: monospace;
+  font-size: .75rem;
+  line-height: 1.55;
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: 4px;
+  padding: .2rem .45rem;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  display: block;
+}
 /* layout diagrams */
 .builder-help-layouts {
   display: flex;

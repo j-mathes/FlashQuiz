@@ -68,6 +68,15 @@ Type text in the field *and* then click **🖼** or **📚** to also add an imag
 | **Inline** | Image and text side by side |
 | **Below** | Text on top, image below |
 
+In CSV/Excel, put the text and image tag on separate lines in the same cell. Image tag on first line = image above; text on first line = image below:
+
+```
+What is this animal?
+[LOCAL:dog.jpg]
+```
+
+Use `[LOCAL:filename]` for an Image Library file, or `[IMG:https://…]` for an external URL.
+
 #### Removing an image
 When an image is set a **✕ Remove** button appears below the preview. Click it to clear the image while keeping any text. Click **🖼** or **📚** at any time to replace the current image instead.
 
