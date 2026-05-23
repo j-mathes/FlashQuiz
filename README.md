@@ -83,6 +83,17 @@ When an image is set a **✕ Remove** button appears below the preview. Click it
 #### 🖼 Missing Images filter
 Click **🖼 Missing Images** in the builder toolbar to show only questions where any field (question, correct answer, or a wrong answer) contains a broken image reference — either a `[LOCAL:name]` not found in the Image Library, or an external URL that fails to load. The button shows **🔍 Checking…** while verifying images in parallel, then highlights active. Click again to clear the filter.
 
+#### 🏷 Levels
+Levels let you tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard, Novice / Expert, Chapter 1 / Chapter 2, etc.).
+
+- Click **🏷 Levels** in the builder toolbar to open the Levels manager
+- Add as many levels as you like; give each a name and pick a colour from the colour picker — a live preview badge updates in real time
+- Once levels are defined, every question card shows a **Level** dropdown so you can tag individual questions
+- If a question has no level assigned (or no levels are defined for the deck), no badge is shown — fully backwards-compatible
+- The level badge appears in the **top bar of flashcards** and alongside the question counter on **quiz questions**; text colour auto-adjusts for readability on the chosen background
+
+**Data format** — when a deck has levels the exported CSV/Excel file gains a `Level` column as the first column; the header row starts with `Level, Question, Correct Answer, …`; import the same format back into FlashQuiz and levels are restored automatically (colours are assigned from the default palette on import and can be re-customised in the builder).
+
 #### Saving & exporting
 - **💾 Save Deck** overwrites the existing deck in place — renaming it here changes its name, no new deck is created
 - **📋 Save as Copy** saves a brand-new deck named `"Copy of …"` and leaves the original untouched

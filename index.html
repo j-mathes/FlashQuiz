@@ -152,7 +152,8 @@
           <input type="text" id="deck-name-input" class="deck-name-input" placeholder="Deck name…" maxlength="80">
           <div class="builder-header-btns">
             <button id="btn-builder-add-q" class="btn btn-primary">+ Add Question</button>
-            <button id="btn-builder-missing-imgs" class="btn btn-ghost" title="Filter to questions where any field has a broken image reference &#x2014; a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter.">🖼 Missing Images</button>
+            <button id="btn-builder-levels" class="btn btn-ghost" title="Define levels (e.g. Easy / Medium / Hard) and assign colours — each question can then be tagged with a level">🏷 Levels</button>
+            <button id="btn-builder-missing-imgs" class="btn btn-ghost" title="Filter to questions where any field has a broken image reference — a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter.">🖼 Missing Images</button>
             <button id="btn-builder-export" class="btn btn-secondary" title="Export this deck as CSV or Excel">⬇ Export</button>
             <button id="btn-builder-save-copy" class="btn btn-secondary" title="Save a new separate deck named 'Copy of …' — does not affect the original">📋 Save as Copy</button>
             <button id="btn-builder-save" class="btn btn-success" title="Overwrite this deck in place — renaming it here changes its name, no new deck is created">💾 Save Deck</button>
@@ -244,6 +245,7 @@
         <div class="fc-top-bar">
           <button id="btn-fc-exit" class="btn btn-ghost">← Back</button>
           <span id="fc-progress" class="fc-progress"></span>
+          <span id="fc-level-badge" class="level-badge" style="display:none"></span>
           <button id="btn-fc-restart" class="btn btn-ghost">↺ Restart</button>
         </div>
 
@@ -302,7 +304,10 @@
             </div>
 
             <div class="quiz-question-card card">
-              <div class="question-meta" id="quiz-q-meta"></div>
+              <div class="question-meta-row">
+                <span id="quiz-q-meta" class="question-meta"></span>
+                <span id="quiz-level-badge" class="level-badge" style="display:none"></span>
+              </div>
               <div class="question-content" id="quiz-q-content"></div>
             </div>
 

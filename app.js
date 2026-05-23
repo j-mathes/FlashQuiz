@@ -14,6 +14,28 @@ const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
 const STORE_IMGS   = 'images';
 
+// Default palette for auto-assigning level colours
+const LEVEL_COLORS = ['#4a90d9','#27ae60','#e67e22','#8e44ad','#e74c3c','#16a085','#f39c12','#2c3e50'];
+
+// Returns '#ffffff' or '#1a1a1a' for readable text on top of a hex colour.
+function contrastColor(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.55 ? '#1a1a1a' : '#ffffff';
+}
+
+// Populate a level badge element from the row's level field.
+function renderLevelBadge(el, row, levels) {
+  if (!el) return;
+  const def = (levels || []).find(l => l.name === row.level);
+  if (!def || !row.level) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent   = def.name;
+  el.style.display = 'inline-flex';
+  el.style.background = def.color;
+  el.style.color   = contrastColor(def.color);
+}
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -366,6 +388,7 @@ const State = {
   // builder
   bld: { editingId: null, filterMissingImgs: false, missingImgIds: null }
 };
+// levels are stored on State.fc.levels / State.qz.levels when a deck is loaded
 
 // ============================================================
 // ROUTER
@@ -451,20 +474,42 @@ const FileParser = {
   /** Convert a 2-D array of cell values into a Dataset object */
   rawToDataset(rawRows, name) {
     const rows = [];
-    for (const raw of rawRows) {
+    const levelMap = new Map(); // name -> color (insertion-ordered)
+
+    // Detect new format: first non-empty row whose first cell is 'level' (header row)
+    const firstNonEmpty = rawRows.findIndex(r => r && r.length > 0);
+    let hasLevelCol = false;
+    let dataStart   = 0;
+    if (firstNonEmpty >= 0) {
+      const firstRow = rawRows[firstNonEmpty];
+      if (String(firstRow[0] || '').trim().toLowerCase() === 'level') {
+        hasLevelCol = true;
+        dataStart   = firstNonEmpty + 1;
+      }
+    }
+
+    for (let ri = dataStart; ri < rawRows.length; ri++) {
+      const raw = rawRows[ri];
       if (!raw || raw.length === 0) continue;
-      const q = parseCell(raw[0]);
+      const off  = hasLevelCol ? 1 : 0;
+      const levelName = hasLevelCol ? String(raw[0] || '').trim() : '';
+      const q = parseCell(raw[off]);
       if (!q) continue;
-      const correct = parseCell(raw[1]);
+      const correct = parseCell(raw[off + 1]);
       if (!correct) continue;
       const wrong = [];
-      for (let i = 2; i < raw.length; i++) {
+      for (let i = off + 2; i < raw.length; i++) {
         const c = parseCell(raw[i]);
         if (c) wrong.push(c);
       }
-      rows.push({ id: genId(), question: q, correctAnswer: correct, wrongAnswers: wrong });
+      if (levelName && !levelMap.has(levelName)) {
+        levelMap.set(levelName, LEVEL_COLORS[levelMap.size % LEVEL_COLORS.length]);
+      }
+      rows.push({ id: genId(), level: levelName, question: q, correctAnswer: correct, wrongAnswers: wrong });
     }
-    return { id: genId(), name, createdAt: new Date().toISOString(), rows };
+
+    const levels = Array.from(levelMap.entries()).map(([name, color]) => ({ name, color }));
+    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows };
   },
 
   /** Parse a CSV string into a 2-D array */
@@ -507,17 +552,17 @@ const FileParser = {
 const DataExport = {
   _sampleRows() {
     return [
-      ['Question', 'Correct Answer', 'Wrong 1', 'Wrong 2', 'Wrong 3'],
-      ['What is the capital of France?', 'Paris', 'London', 'Berlin', 'Madrid'],
-      ['Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
-      ['What is 7 × 8?', '56', '48', '54', '64'],
-      ['Who wrote "Romeo and Juliet"?', 'William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain'],
-      ['What is the chemical symbol for water?', 'H2O', 'CO2', 'O2', 'H2SO4'],
-      ['https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Eiffel_Tower_20051010.jpg/320px-Eiffel_Tower_20051010.jpg',
+      ['Level', 'Question', 'Correct Answer', 'Wrong 1', 'Wrong 2', 'Wrong 3'],
+      ['Easy',   'What is the capital of France?', 'Paris', 'London', 'Berlin', 'Madrid'],
+      ['Easy',   'Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
+      ['Medium', 'What is 7 × 8?', '56', '48', '54', '64'],
+      ['Medium', 'Who wrote "Romeo and Juliet"?', 'William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain'],
+      ['Medium', 'What is the chemical symbol for water?', 'H2O', 'CO2', 'O2', 'H2SO4'],
+      ['Hard',   'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Eiffel_Tower_20051010.jpg/320px-Eiffel_Tower_20051010.jpg',
         'Eiffel Tower', 'Big Ben', 'Statue of Liberty', 'Colosseum'],
-      ['Which element has the atomic number 1?', 'Hydrogen', 'Helium', 'Lithium', 'Carbon'],
-      ['How many sides does a hexagon have?', '6', '5', '7', '8'],
-      ['What is the largest ocean on Earth?', 'Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'],
+      ['Hard',   'Which element has the atomic number 1?', 'Hydrogen', 'Helium', 'Lithium', 'Carbon'],
+      ['',       'How many sides does a hexagon have?', '6', '5', '7', '8'],
+      ['',       'What is the largest ocean on Earth?', 'Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'],
     ];
   },
 
@@ -552,24 +597,7 @@ const DataExport = {
 
   /** Export a dataset from IndexedDB/state as CSV */
   datasetToCSV(ds) {
-    const rows = ds.rows.map(r => {
-      const toCell = c => {
-        if (!c) return '';
-        if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
-        if (c.type === 'mixed') {
-          const imgPart = c.fromLibrary ? `[LOCAL:${c.fromLibrary}]`
-            : (c.localImage ? `[LOCAL:${c.localImage}]` : `[IMG:${c.src}]`);
-          return c.imgPosition === 'after' ? `${c.text}\n${imgPart}` : `${imgPart}\n${c.text}`;
-        }
-        if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
-        return c.text;
-      };
-      return [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
-    });
-    return DataExport._toCSV(rows);
-  },
-
-  datasetToXLSX(ds, filename) {
+    const hasLevels = ds.levels && ds.levels.length > 0;
     const toCell = c => {
       if (!c) return '';
       if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
@@ -581,11 +609,35 @@ const DataExport = {
       if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
       return c.text;
     };
-    const rows = ds.rows.map(r =>
-      [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)]
-    );
+    const rows = ds.rows.map(r => {
+      const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
+      if (hasLevels) cells.unshift(r.level || '');
+      return cells;
+    });
+    if (hasLevels) rows.unshift(['Level', 'Question', 'Correct Answer']);
+    return DataExport._toCSV(rows);
+  },
+
+  datasetToXLSX(ds, filename) {
+    const hasLevels = ds.levels && ds.levels.length > 0;
+    const toCell = c => {
+      if (!c) return '';
+      if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
+      if (c.type === 'mixed') {
+        const imgPart = c.fromLibrary ? `[LOCAL:${c.fromLibrary}]`
+          : (c.localImage ? `[LOCAL:${c.localImage}]` : `[IMG:${c.src}]`);
+        return c.imgPosition === 'after' ? `${c.text}\n${imgPart}` : `${imgPart}\n${c.text}`;
+      }
+      if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
+      return c.text;
+    };
+    const rows = ds.rows.map(r => {
+      const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
+      if (hasLevels) cells.unshift(r.level || '');
+      return cells;
+    });
+    if (hasLevels) rows.unshift(['Level', 'Question', 'Correct Answer']);
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    // Enable text-wrap so multi-line mixed cells display correctly in Excel
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => {
       ws[k].s = { alignment: { wrapText: true } };
     });
@@ -1077,6 +1129,8 @@ Views.builder = {
     document.getElementById('deck-name-input').value  = ds.name;
     const missingBtn = document.getElementById('btn-builder-missing-imgs');
     if (missingBtn) missingBtn.classList.remove('active');
+    const levelsBtn = document.getElementById('btn-builder-levels');
+    if (levelsBtn) levelsBtn.classList.remove('active');
     document.getElementById('builder-editor').classList.remove('hidden');
     document.getElementById('builder-deck-list').innerHTML = '';
 
@@ -1122,6 +1176,15 @@ Views.builder = {
     const qPos  = q.imgPosition  || 'before';
     const caPos = ca.imgPosition || 'before';
 
+    // Level dropdown (only when the deck has levels defined)
+    const levels = State.bld.draft.levels || [];
+    const levelDropdown = levels.length
+      ? `<select class="level-select" data-role="level-sel" title="Assign a level to this question">
+           <option value="">— No Level —</option>
+           ${levels.map(l => `<option value="${esc(l.name)}" ${row.level === l.name ? 'selected' : ''} style="background:${esc(l.color)};color:${contrastColor(l.color)}">${esc(l.name)}</option>`).join('')}
+         </select>`
+      : '';
+
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
       const wh = w.type === 'image' || w.type === 'mixed';
@@ -1145,6 +1208,7 @@ Views.builder = {
     card.innerHTML = `
       <div class="builder-q-card-header">
         <span class="builder-q-num">Q ${idx + 1}</span>
+        ${levelDropdown}
         <button class="btn btn-danger btn-sm" data-role="del-q">✕ Remove</button>
       </div>
 
@@ -1291,6 +1355,10 @@ Views.builder = {
 
     wireField('q',  '.q-text',  () => row.question,     v => { row.question = v; });
     wireField('ca', '.ca-text', () => row.correctAnswer, v => { row.correctAnswer = v; });
+
+    // ── level dropdown ────────────────────────────────────────
+    const levelSel = card.querySelector('[data-role="level-sel"]');
+    if (levelSel) levelSel.addEventListener('change', () => { row.level = levelSel.value; });
 
     // ── wrong answers ─────────────────────────────────────────
     card.querySelectorAll('.wrong-text').forEach(ta => {
@@ -1474,6 +1542,7 @@ Views.builder = {
   addQuestion() {
     State.bld.draft.rows.push({
       id: genId(),
+      level:         '',
       question:      { type: 'text', text: '' },
       correctAnswer: { type: 'text', text: '' },
       wrongAnswers:  [{ type: 'text', text: '' }]
@@ -1542,6 +1611,81 @@ Views.builder = {
     if (!copy.rows.length) { Toast.show('No complete questions to copy', 'warning'); return; }
     await Storage.saveDataset(copy);
     Toast.show(`Saved as "${copy.name}" (${copy.rows.length} questions)`, 'success');
+  },
+
+  showLevelsDialog() {
+    const draft = State.bld.draft;
+    if (!draft) return;
+    draft.levels = draft.levels || [];
+
+    const renderRows = () => {
+      const container = document.getElementById('levels-rows-container');
+      if (!container) return;
+      container.innerHTML = '';
+      draft.levels.forEach((lv, i) => {
+        const row = document.createElement('div');
+        row.className = 'level-row';
+        row.innerHTML = `
+          <input type="color" class="level-color-input" value="${esc(lv.color)}" title="Pick colour">
+          <input type="text" class="input level-name-input" value="${esc(lv.name)}" placeholder="Level name\u2026" maxlength="40">
+          <span class="level-badge" style="background:${esc(lv.color)};color:${contrastColor(lv.color)};display:inline-flex">${esc(lv.name || '?')}</span>
+          <button class="btn btn-danger btn-sm" data-del="${i}" title="Remove level">\u2715</button>`;
+
+        const colorIn = row.querySelector('.level-color-input');
+        const nameIn  = row.querySelector('.level-name-input');
+        const badge   = row.querySelector('.level-badge');
+
+        colorIn.addEventListener('input', () => {
+          lv.color = colorIn.value;
+          badge.style.background = lv.color;
+          badge.style.color = contrastColor(lv.color);
+        });
+        nameIn.addEventListener('input', () => {
+          lv.name = nameIn.value;
+          badge.textContent = lv.name || '?';
+        });
+        row.querySelector('[data-del]').addEventListener('click', () => {
+          draft.levels.splice(i, 1);
+          renderRows();
+        });
+
+        container.appendChild(row);
+      });
+    };
+
+    const wrap = document.createElement('div');
+    wrap.className = 'levels-manager';
+    wrap.innerHTML = `
+      <p style="margin:0 0 .4rem;font-size:.85rem;color:var(--clr-text-muted)">
+        Define the levels for this deck (e.g. Easy, Medium, Hard). Each question can then be tagged with a level.
+        Colours are shown as a badge on flashcards and quiz questions.
+      </p>
+      <div id="levels-rows-container" class="levels-manager"></div>
+      <button id="btn-add-level" class="btn btn-primary btn-sm" style="align-self:flex-start">+ Add Level</button>`;
+
+    Modal.show({
+      title: '\ud83c\udff7 Manage Levels',
+      body: wrap,
+      wide: true,
+      buttons: [{ label: 'Done', className: 'btn-primary', onClick: () => {
+        draft.levels = draft.levels.filter(l => l.name.trim());
+        Views.builder.renderQuestions();
+        Modal.hide();
+      }}]
+    });
+
+    renderRows();
+
+    document.getElementById('btn-add-level').addEventListener('click', () => {
+      draft.levels.push({
+        name: '',
+        color: LEVEL_COLORS[draft.levels.length % LEVEL_COLORS.length]
+      });
+      renderRows();
+      const container = document.getElementById('levels-rows-container');
+      const last = container && container.lastElementChild;
+      if (last) last.querySelector('.level-name-input')?.focus();
+    });
   },
 
   showExportDialog() {
@@ -1622,6 +1766,7 @@ Views.flashcards = {
     if (!ds) { Toast.show('Could not load dataset', 'error'); return; }
 
     State.fc.datasetId = datasetId;
+    State.fc.levels    = ds.levels || [];
     State.fc.questions = shuffle(await resolveLocalImages(ds.rows));
     State.fc.idx       = 0;
     State.fc.flipped   = false;
@@ -1656,6 +1801,7 @@ Views.flashcards = {
     renderCell(row.correctAnswer, document.getElementById('fc-back-content'));
 
     document.getElementById('fc-progress').textContent = `${idx + 1} / ${qs.length}`;
+    renderLevelBadge(document.getElementById('fc-level-badge'), row, State.fc.levels);
 
     // dots
     const dots = document.getElementById('fc-dots');
@@ -1746,6 +1892,7 @@ Views.quiz = {
     const resolvedRows = await resolveLocalImages(ds.rows);
     State.qz = {
       datasetId, datasetName: ds.name,
+      levels: ds.levels || [],
       questions: resolvedRows.filter(r => r.wrongAnswers.length > 0),
       pool: [], idx: 0,
       results: [], allAttempts: [],
@@ -1793,7 +1940,8 @@ Views.quiz = {
     document.getElementById('quiz-round-badge').textContent = `Round ${State.qz.round}`;
     document.getElementById('qscore-correct').textContent   = State.qz.score.correct;
     document.getElementById('qscore-total').textContent     = State.qz.score.total;
-    document.getElementById('quiz-q-meta').textContent      = `Question ${idx + 1} of ${pool.length}`;
+    document.getElementById('quiz-q-meta').textContent = `Question ${idx + 1} of ${pool.length}`;
+    renderLevelBadge(document.getElementById('quiz-level-badge'), row, State.qz.levels);
 
     const row = pool[idx];
 
@@ -2260,6 +2408,7 @@ function wireEvents() {
   document.getElementById('btn-builder-save').addEventListener('click',   () => Views.builder.save());
   document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
   document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.showExportDialog());
+  document.getElementById('btn-builder-levels').addEventListener('click', () => Views.builder.showLevelsDialog());
   document.getElementById('btn-builder-close').addEventListener('click',  () => Views.builder.closeEditor());
 
   // ── Flashcard view ──

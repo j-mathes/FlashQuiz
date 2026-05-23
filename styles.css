@@ -834,7 +834,64 @@ select { cursor: pointer; }
   font-size: .8rem;
   color: var(--clr-text-muted);
   font-weight: 600;
+}
+/* Flex row: "Question X of Y" + optional level badge */
+.question-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
   margin-bottom: .5rem;
+}
+/* Level badge — used in quiz, flashcard, and levels-manager preview */
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .15em .6em;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+/* Builder level dropdown */
+.level-select {
+  font-size: .8rem;
+  padding: .2rem .4rem;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  cursor: pointer;
+}
+/* Levels-manager modal rows */
+.levels-manager {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.level-color-input {
+  width: 36px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.level-name-input {
+  flex: 1;
+}
+/* Flashcard level badge sits in the top bar next to progress */
+#fc-level-badge {
+  margin-left: .25rem;
 }
 .question-content {
   font-size: 1.1rem;
