@@ -85,9 +85,19 @@ When an image is set a **✕ Remove** button appears below the preview. Click it
 - **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
 - **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
 
+#### 🖼 Missing Images filter
+Click **🖼 Missing Images** in the builder toolbar to show only questions where any field (question, correct answer, or a wrong answer) contains a broken image reference — either a `[LOCAL:name]` not found in the Image Library, or an external URL that fails to load. The button shows **🔍 Checking…** while verifying images in parallel, then highlights active. Click again to clear the filter.
+
+---
+
+- **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
+- **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
+
 ### Image Library
 - Upload images once (up to 5 MB each) from the **Data** page; stored locally in IndexedDB
+- **Upload multiple images at once** to a specific group using the **📤 Upload** button on each group header
 - Reference in the builder via 📚 or in CSV/Excel with `[LOCAL:filename]`
+- Images retain their original filename for easy identification
 - Delete individual images at any time
 
 ### Users & Reports

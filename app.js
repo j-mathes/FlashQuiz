@@ -364,7 +364,7 @@ const State = {
     startedAt: null,
   },
   // builder
-  bld: { editingId: null }
+  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null }
 };
 
 // ============================================================
@@ -847,10 +847,18 @@ Views.data = {
         <span class="image-lib-group-name">${esc(label)}</span>
         <span class="image-lib-group-count">${groups[key].length} image${groups[key].length !== 1 ? 's' : ''}</span>
         <div class="image-lib-group-actions">
+          <button class="btn btn-ghost btn-xs" data-group-action="upload" title="Upload images to this group">📤 Upload</button>
           <button class="btn btn-ghost btn-xs" data-group-action="rename" title="Rename group">✏️ Rename</button>
           <button class="btn btn-ghost btn-xs" data-group-action="export" title="Export group as ZIP">⬇ Export</button>
           <button class="btn btn-danger btn-xs"  data-group-action="delete" title="Delete all images in group">🗑 Delete All</button>
         </div>`;
+
+      // Upload to group
+      header.querySelector('[data-group-action="upload"]').addEventListener('click', () => {
+        const groupInp = document.getElementById('image-lib-group');
+        if (groupInp) groupInp.value = key;
+        document.getElementById('image-lib-input').click();
+      });
 
       // Rename
       header.querySelector('[data-group-action="rename"]').addEventListener('click', () => {
@@ -1036,8 +1044,12 @@ Views.builder = {
   openEditor(ds) {
     State.bld.editingId = ds.id;
     State.bld.draft = JSON.parse(JSON.stringify(ds)); // deep clone
+    State.bld.filterMissingImgs = false;
+    State.bld.missingImgIds     = null;
 
     document.getElementById('deck-name-input').value  = ds.name;
+    const missingBtn = document.getElementById('btn-builder-missing-imgs');
+    if (missingBtn) missingBtn.classList.remove('active');
     document.getElementById('builder-editor').classList.remove('hidden');
     document.getElementById('builder-deck-list').innerHTML = '';
 
@@ -1054,7 +1066,17 @@ Views.builder = {
       return;
     }
 
-    rows.forEach((row, idx) => {
+    const missingIds = State.bld.missingImgIds;
+    const filtered = State.bld.filterMissingImgs
+      ? rows.map((row, idx) => ({ row, idx })).filter(({ row }) => missingIds && missingIds.has(row.id))
+      : rows.map((row, idx) => ({ row, idx }));
+
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state"><p>No questions match \u2014 every question has an image. \ud83c\udf89</p></div>`;
+      return;
+    }
+
+    filtered.forEach(({ row, idx }) => {
       container.appendChild(Views.builder.makeQuestionCard(row, idx));
     });
   },
@@ -2108,6 +2130,68 @@ function wireEvents() {
   // ── Builder view ──
   document.getElementById('btn-new-deck').addEventListener('click',       () => Views.builder.newDeck());
   document.getElementById('btn-builder-add-q').addEventListener('click',  () => Views.builder.addQuestion());
+  document.getElementById('btn-builder-missing-imgs').addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    State.bld.filterMissingImgs = !State.bld.filterMissingImgs;
+    btn.classList.toggle('active', State.bld.filterMissingImgs);
+
+    if (!State.bld.filterMissingImgs) {
+      State.bld.missingImgIds = null;
+      Views.builder.renderQuestions();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '🔍 Checking…';
+
+    // Build a set of known local-library image names.
+    const libImgs    = await Storage.getAllImages();
+    const knownNames = new Set(libImgs.map(i => i.name));
+
+    // Returns true if src is a working image (loads within 5s), false if broken/absent.
+    const srcLoads = src => new Promise(resolve => {
+      if (!src)                     return resolve(false);
+      if (src.startsWith('data:'))  return resolve(true);   // embedded – always present
+      const img   = new Image();
+      const timer = setTimeout(() => resolve(false), 5000); // treat timeout as broken
+      img.onload  = () => { clearTimeout(timer); resolve(true);  };
+      img.onerror = () => { clearTimeout(timer); resolve(false); };
+      img.src = src;
+    });
+
+    // Resolve the display src for a cell (null = cell has no image reference).
+    const cellSrc = cell => {
+      if (!cell || cell.type === 'text') return null;
+      if (cell.type === 'image')  return cell.src || null;
+      if (cell.type === 'mixed')  return cell.src || null;
+      // local-image or mixed with localImage
+      const name = cell.name || cell.localImage || cell.fromLibrary || null;
+      if (!name) return null;
+      const rec = libImgs.find(i => i.name === name);
+      return rec ? rec.src : '';   // empty string = name exists as reference but no src
+    };
+
+    // A cell is "missing" if it has an image reference whose src fails to load.
+    const cellMissing = async cell => {
+      const src = cellSrc(cell);
+      if (src === null) return false;  // text cell – no image expected
+      return !(await srcLoads(src));   // image expected but broken / not in library
+    };
+
+    const rowMissing = async row => (
+      await cellMissing(row.question) ||
+      await cellMissing(row.correctAnswer) ||
+      (await Promise.all((row.wrongAnswers || []).map(cellMissing))).some(Boolean)
+    );
+
+    const rows    = State.bld.draft.rows;
+    const results = await Promise.all(rows.map(rowMissing));
+    State.bld.missingImgIds = new Set(rows.filter((_, i) => results[i]).map(r => r.id));
+
+    btn.disabled    = false;
+    btn.textContent = '🖼 Missing Images';
+    Views.builder.renderQuestions();
+  });
   document.getElementById('btn-builder-save').addEventListener('click',   () => Views.builder.save());
   document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
   document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.exportCSV());

@@ -125,6 +125,7 @@ kbd {
 
 .btn-ghost     { background: transparent; color: var(--clr-text-muted); }
 .btn-ghost:hover:not(:disabled)    { background: var(--clr-bg); color: var(--clr-text); }
+.btn-ghost.active { background: var(--clr-primary-light); color: var(--clr-primary); border-color: var(--clr-primary); }
 
 .link-btn {
   background: none; border: none; padding: 0;
