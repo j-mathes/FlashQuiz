@@ -48,11 +48,31 @@ Import a **CSV** or **Excel** (`.xlsx` / `.xls`) file. Use **⬇ Sample CSV** or
 - **↺ Retry Incorrect** re-runs only missed questions in a new round; continues until all correct
 
 ### Quiz Builder
-- Build or edit decks in the app; each field supports text, an uploaded image, or a library pick (📚)
-- **🖼 Upload** — embeds an image file directly in the card (max 2 MB, stored as base64)
-- **📚 Pick from Library** — references an image from the Image Library by filename (lightweight)
-- Type text **and** pick an image in the same field to create a mixed cell; an **Above / Inline / Below** toggle controls layout
-- When an image is set, a **✕ Remove** button appears below the preview to clear it
+
+Build or edit decks in the app. Each question/answer field supports text, an image, or both.
+
+#### Adding an image — three ways
+
+**1. Upload a file (🖼)**
+Click the **🖼** button next to any field → choose a file (max 2 MB). The image is embedded as base64 directly in the deck.
+
+**2. Pick from the Image Library (📚)**
+Upload images once on the **Data** page (up to 5 MB each). Then, in the builder, click **📚** → choose a name from the picker. Stored as a lightweight `[LOCAL:name]` reference, not embedded.
+
+**3. Mixed — text + image**
+Type text in the field *and* then click **🖼** or **📚** to also add an image. A position toggle appears:
+
+| Toggle | Result |
+|---|---|
+| **Above** | Image on top, text below |
+| **Inline** | Image and text side by side |
+| **Below** | Text on top, image below |
+
+#### Removing an image
+When an image is set a **✕ Remove** button appears below the preview. Click it to clear the image while keeping any text. Click **🖼** or **📚** at any time to replace the current image instead.
+
+---
+
 - **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
 - **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
 
