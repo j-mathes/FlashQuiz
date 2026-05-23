@@ -1029,6 +1029,9 @@ select { cursor: pointer; }
 }
 .image-lib-card { margin-top: .5rem; }
 .image-lib-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.image-lib-actions .image-lib-group-label { white-space: nowrap; }
+.image-lib-actions #image-lib-group { flex: 1; min-width: 160px; }
+.image-lib-actions #btn-upload-images { margin-left: auto; white-space: nowrap; }
 .image-lib-group-label { font-size: .85rem; color: var(--clr-text-muted); white-space: nowrap; }
 .select-sm {
   font-size: .85rem;

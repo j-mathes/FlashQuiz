@@ -1630,6 +1630,7 @@ Views.quiz = {
       score: { correct: 0, total: 0 },
       round: 1, answered: false,
       showCorrect: document.getElementById('quiz-opt-show-correct')?.checked ?? true,
+      autoRetry:   document.getElementById('quiz-opt-auto-retry')?.checked  ?? false,
       sessionId: genId(), startedAt: new Date().toISOString()
     };
 
@@ -1817,9 +1818,9 @@ Views.quiz = {
       bdEl.appendChild(item);
     });
 
-    // retry button
+    // retry button — only show if auto-retry is enabled and there are wrong answers
     const retryBtn = document.getElementById('btn-retry-wrong');
-    if (wrongIds.length > 0) {
+    if (wrongIds.length > 0 && State.qz.autoRetry) {
       retryBtn.classList.remove('hidden');
     } else {
       retryBtn.classList.add('hidden');
