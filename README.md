@@ -80,18 +80,13 @@ Use `[LOCAL:filename]` for an Image Library file, or `[IMG:https://…]` for an 
 #### Removing an image
 When an image is set a **✕ Remove** button appears below the preview. Click it to clear the image while keeping any text. Click **🖼** or **📚** at any time to replace the current image instead.
 
----
-
-- **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
-- **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
-
 #### 🖼 Missing Images filter
 Click **🖼 Missing Images** in the builder toolbar to show only questions where any field (question, correct answer, or a wrong answer) contains a broken image reference — either a `[LOCAL:name]` not found in the Image Library, or an external URL that fails to load. The button shows **🔍 Checking…** while verifying images in parallel, then highlights active. Click again to clear the filter.
 
----
-
-- **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
-- **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
+#### Saving & exporting
+- **💾 Save Deck** overwrites the existing deck in place — renaming it here changes its name, no new deck is created
+- **📋 Save as Copy** saves a brand-new deck named `"Copy of …"` and leaves the original untouched
+- **⬇ Export** opens a dialog to set the filename and choose format — **CSV** or **Excel (.xlsx)**; Excel preserves multi-line mixed cells (text + image tag) correctly when opened in Excel; both formats can be re-imported into FlashQuiz
 
 ### Image Library
 - Upload images once (up to 5 MB each) from the **Data** page; stored locally in IndexedDB

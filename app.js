@@ -569,6 +569,31 @@ const DataExport = {
     return DataExport._toCSV(rows);
   },
 
+  datasetToXLSX(ds, filename) {
+    const toCell = c => {
+      if (!c) return '';
+      if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
+      if (c.type === 'mixed') {
+        const imgPart = c.fromLibrary ? `[LOCAL:${c.fromLibrary}]`
+          : (c.localImage ? `[LOCAL:${c.localImage}]` : `[IMG:${c.src}]`);
+        return c.imgPosition === 'after' ? `${c.text}\n${imgPart}` : `${imgPart}\n${c.text}`;
+      }
+      if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
+      return c.text;
+    };
+    const rows = ds.rows.map(r =>
+      [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)]
+    );
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Enable text-wrap so multi-line mixed cells display correctly in Excel
+    Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => {
+      ws[k].s = { alignment: { wrapText: true } };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, ds.name || 'Quiz');
+    XLSX.writeFile(wb, (filename || ds.name || 'deck') + '.xlsx');
+  },
+
   _dl(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a   = Object.assign(document.createElement('a'), { href: url, download: filename });
@@ -1519,15 +1544,53 @@ Views.builder = {
     Toast.show(`Saved as "${copy.name}" (${copy.rows.length} questions)`, 'success');
   },
 
-  exportCSV() {
+  showExportDialog() {
     const draft = State.bld.draft;
     if (!draft || !draft.rows.length) { Toast.show('Nothing to export', 'warning'); return; }
-    const csv  = DataExport.datasetToCSV(draft);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), { href: url, download: (draft.name || 'deck') + '.csv' });
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:.9rem';
+    wrap.innerHTML = `
+      <div>
+        <label style="display:block;font-size:.85rem;margin-bottom:.3rem;color:var(--clr-text-muted)">File name</label>
+        <input id="export-filename" type="text" class="deck-name-input" style="width:100%;box-sizing:border-box"
+          value="${esc(draft.name || 'deck')}" maxlength="100" autocomplete="off">
+      </div>
+      <div>
+        <label style="display:block;font-size:.85rem;margin-bottom:.4rem;color:var(--clr-text-muted)">Format</label>
+        <div style="display:flex;gap:1.2rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+            <input type="radio" name="export-fmt" value="csv" checked> CSV (.csv)
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+            <input type="radio" name="export-fmt" value="xlsx"> Excel (.xlsx)
+          </label>
+        </div>
+        <p style="font-size:.78rem;color:var(--clr-text-muted);margin:.4rem 0 0">Excel preserves multi-line cells (text‫+‪image) correctly when opened in Excel.</p>
+      </div>`;
+
+    Modal.show({ title: '⬇ Export Deck', body: wrap, wide: true, buttons: [
+      { label: 'Cancel' },
+      { label: 'Export', cls: 'btn-primary', action: () => {
+        const filename = (document.getElementById('export-filename').value.trim() || draft.name || 'deck');
+        const fmt = wrap.querySelector('input[name="export-fmt"]:checked').value;
+        if (fmt === 'xlsx') {
+          if (typeof XLSX === 'undefined') { Toast.show('SheetJS not loaded — use CSV instead', 'warning'); return; }
+          DataExport.datasetToXLSX(draft, filename);
+        } else {
+          const csv  = DataExport.datasetToCSV(draft);
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url  = URL.createObjectURL(blob);
+          const a    = Object.assign(document.createElement('a'), { href: url, download: filename + '.csv' });
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        }
+      }}
+    ]});
+    setTimeout(() => {
+      const inp = document.getElementById('export-filename');
+      if (inp) { inp.select(); inp.focus(); }
+    }, 50);
   },
 
   closeEditor() {
@@ -2196,7 +2259,7 @@ function wireEvents() {
   });
   document.getElementById('btn-builder-save').addEventListener('click',   () => Views.builder.save());
   document.getElementById('btn-builder-save-copy').addEventListener('click', () => Views.builder.saveAsCopy());
-  document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.exportCSV());
+  document.getElementById('btn-builder-export').addEventListener('click', () => Views.builder.showExportDialog());
   document.getElementById('btn-builder-close').addEventListener('click',  () => Views.builder.closeEditor());
 
   // ── Flashcard view ──
