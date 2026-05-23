@@ -49,7 +49,10 @@ Import a **CSV** or **Excel** (`.xlsx` / `.xls`) file. Use **⬇ Sample CSV** or
 
 ### Quiz Builder
 - Build or edit decks in the app; each field supports text, an uploaded image, or a library pick (📚)
-- Type text and pick an image together to create a mixed cell with a **Before / After** position toggle
+- **🖼 Upload** — embeds an image file directly in the card (max 2 MB, stored as base64)
+- **📚 Pick from Library** — references an image from the Image Library by filename (lightweight)
+- Type text **and** pick an image in the same field to create a mixed cell; an **Above / Inline / Below** toggle controls layout
+- When an image is set, a **✕ Remove** button appears below the preview to clear it
 - **💾 Save Deck** overwrites in place; **📋 Save as Copy** saves a new deck named `"Copy of …"`
 - **⬇ Export CSV** serialises library picks as `[LOCAL:name]` tags for round-trip import
 
