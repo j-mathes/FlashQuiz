@@ -1036,18 +1036,32 @@ select { cursor: pointer; }
   border-radius: var(--radius);
   background: var(--clr-surface);
   color: var(--clr-text);
+  min-width: 160px;
 }
-.image-lib-section { margin-bottom: 1.25rem; }
+.image-lib-section { margin-bottom: 1.5rem; }
 .image-lib-group-header {
-  font-size: .78rem;
-  font-weight: 600;
-  color: var(--clr-text-muted);
-  text-transform: uppercase;
-  letter-spacing: .05em;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
   margin-bottom: .5rem;
   padding-bottom: .3rem;
   border-bottom: 1px solid var(--clr-border);
 }
+.image-lib-group-name {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.image-lib-group-count {
+  font-size: .75rem;
+  color: var(--clr-text-muted);
+  opacity: .7;
+  flex: 1;
+}
+.image-lib-group-actions { display: flex; gap: .3rem; margin-left: auto; }
+.btn-xs { font-size: .72rem; padding: .15rem .45rem; line-height: 1.4; }
 
 .image-lib-grid {
   display: grid;

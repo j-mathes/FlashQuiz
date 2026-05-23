@@ -128,9 +128,9 @@
         <p class="text-muted">Store images locally and reference them in datasets with <code>[LOCAL:filename]</code> in CSV/Excel, or pick them from the builder.</p>
         <div class="image-lib-actions">
           <label class="image-lib-group-label" for="image-lib-group">Group:</label>
-          <select id="image-lib-group" class="select-sm" title="Assign uploaded images to this group">
-            <option value="">General</option>
-          </select>
+          <input id="image-lib-group" list="image-lib-group-list" class="select-sm"
+                 placeholder="General (or type a name)" autocomplete="off">
+          <datalist id="image-lib-group-list"></datalist>
           <button id="btn-upload-images" class="btn btn-primary">+ Upload Images</button>
           <input type="file" id="image-lib-input" accept="image/*" multiple hidden>
         </div>
@@ -297,6 +297,9 @@
   <!-- ── TOAST ──────────────────────────────────────────── -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+  <!-- JSZip for image group export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- SheetJS for Excel read/write (CDN; graceful degradation if offline) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>

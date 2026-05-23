@@ -286,6 +286,16 @@ const Storage = (() => {
       req.onerror   = () => rej(req.error);
     });
   }
+  async function updateImagesGroup(oldGroup, newGroup) {
+    const all = await getAllImages();
+    const hits = all.filter(img => (img.group || '') === oldGroup);
+    await Promise.all(hits.map(img => idbPut(STORE_IMGS, { ...img, group: newGroup })));
+  }
+  async function deleteImagesByGroup(group) {
+    const all = await getAllImages();
+    const hits = all.filter(img => (img.group || '') === group);
+    await Promise.all(hits.map(img => idbDel(STORE_IMGS, img.name)));
+  }
 
   function getUsers()         { return lsGet('users', []); }
   function saveUsers(u)       { lsSet('users', u); }
@@ -298,12 +308,29 @@ const Storage = (() => {
 
   return {
     initDB, saveDataset, getDataset, deleteDataset, getDatasetMetas,
-    saveImage, getImage, deleteImage, getAllImages,
+    saveImage, getImage, deleteImage, getAllImages, updateImagesGroup, deleteImagesByGroup,
     getUsers, saveUsers, getCurrentUser, setCurrentUser,
     getSessions, addSession, clearSessions,
     lsGet, lsSet, lsDel
   };
 })();
+
+// ============================================================
+// IMAGE GROUP ZIP EXPORT
+// ============================================================
+async function exportGroupZip(groupName, images) {
+  if (!window.JSZip) { Toast.show('ZIP library unavailable (offline?)', 'warning'); return; }
+  const zip = new window.JSZip();
+  images.forEach(img => {
+    const m = img.src.match(/^data:[^;]+;base64,(.+)$/);
+    if (m) zip.file(img.name, m[1], { base64: true });
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = (groupName || 'General') + '.zip'; a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ============================================================
 // APP STATE
@@ -760,33 +787,33 @@ Views.data = {
   async renderImageLib() {
     const grid  = document.getElementById('image-lib-grid');
     if (!grid) return;
-    const count  = document.getElementById('image-lib-count');
-    const images = await Storage.getAllImages();
+    const count   = document.getElementById('image-lib-count');
+    const images  = await Storage.getAllImages();
 
-    // Populate group selector with current dataset names
-    const groupSel = document.getElementById('image-lib-group');
-    if (groupSel) {
-      const prev = groupSel.value;
-      groupSel.innerHTML = '<option value="">General</option>';
-      Storage.getDatasetMetas().forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.name;
-        opt.textContent = m.name;
-        groupSel.appendChild(opt);
+    // Populate datalist with dataset names + existing custom groups
+    const dl = document.getElementById('image-lib-group-list');
+    if (dl) {
+      const prev = document.getElementById('image-lib-group')?.value || '';
+      dl.innerHTML = '';
+      const opts = new Set(Storage.getDatasetMetas().map(m => m.name));
+      images.forEach(img => { if (img.group) opts.add(img.group); });
+      [...opts].sort().forEach(g => {
+        const opt = document.createElement('option'); opt.value = g; dl.appendChild(opt);
       });
-      if ([...groupSel.options].some(o => o.value === prev)) groupSel.value = prev;
+      if (document.getElementById('image-lib-group')) {
+        document.getElementById('image-lib-group').value = prev;
+      }
     }
 
     if (count) count.textContent = images.length
-      ? `${images.length} image${images.length !== 1 ? 's' : ''} stored`
-      : '';
+      ? `${images.length} image${images.length !== 1 ? 's' : ''} stored` : '';
     grid.innerHTML = '';
     if (!images.length) {
       grid.innerHTML = '<div class="empty-state" style="padding:1rem"><p>No images yet. Click <strong>+ Upload Images</strong>.</p></div>';
       return;
     }
 
-    // Group images by their group field
+    // Group images
     const groups = {};
     images.forEach(img => {
       const g = img.group || '';
@@ -794,21 +821,68 @@ Views.data = {
       groups[g].push(img);
     });
     const keys = Object.keys(groups).sort((a, b) => {
-      if (a === '') return -1;
-      if (b === '') return 1;
+      if (a === '') return -1; if (b === '') return 1;
       return a.localeCompare(b);
     });
-    const showHeaders = keys.length > 1;
 
     keys.forEach(key => {
+      const label = key || 'General';
       const section = document.createElement('div');
       section.className = 'image-lib-section';
-      if (showHeaders) {
-        const header = document.createElement('div');
-        header.className = 'image-lib-group-header';
-        header.textContent = key || 'General';
-        section.appendChild(header);
-      }
+
+      // Group header with action buttons
+      const header = document.createElement('div');
+      header.className = 'image-lib-group-header';
+      header.innerHTML = `
+        <span class="image-lib-group-name">${esc(label)}</span>
+        <span class="image-lib-group-count">${groups[key].length} image${groups[key].length !== 1 ? 's' : ''}</span>
+        <div class="image-lib-group-actions">
+          <button class="btn btn-ghost btn-xs" data-group-action="rename" title="Rename group">✏️ Rename</button>
+          <button class="btn btn-ghost btn-xs" data-group-action="export" title="Export group as ZIP">⬇ Export</button>
+          <button class="btn btn-danger btn-xs"  data-group-action="delete" title="Delete all images in group">🗑 Delete All</button>
+        </div>`;
+
+      // Rename
+      header.querySelector('[data-group-action="rename"]').addEventListener('click', () => {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.value = key; inp.placeholder = 'Leave empty for General';
+        inp.style.cssText = 'width:100%;margin-top:.5rem;box-sizing:border-box';
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `<p>New name for <strong>${esc(label)}</strong> (empty = General):</p>`;
+        wrap.appendChild(inp);
+        Modal.show({ title: 'Rename Group', body: wrap, buttons: [
+          { label: 'Cancel' },
+          { label: 'Rename', cls: 'btn-primary', action: async () => {
+            const newName = inp.value.trim();
+            if (newName === key) return;
+            await Storage.updateImagesGroup(key, newName);
+            Views.data.renderImageLib();
+            Toast.show(`Renamed to "${newName || 'General'}"`, 'success');
+          }}
+        ]});
+        setTimeout(() => { inp.select(); inp.focus(); }, 50);
+      });
+
+      // Export as ZIP
+      header.querySelector('[data-group-action="export"]').addEventListener('click', () => {
+        exportGroupZip(label, groups[key]);
+      });
+
+      // Delete group
+      header.querySelector('[data-group-action="delete"]').addEventListener('click', () => {
+        Modal.confirm(
+          `Delete Group: ${label}`,
+          `Remove all ${groups[key].length} image(s) in "${label}"? This cannot be undone.`,
+          async () => {
+            await Storage.deleteImagesByGroup(key);
+            Views.data.renderImageLib();
+            Toast.show(`Group "${label}" deleted`, 'info');
+          }, 'Delete All', 'btn-danger'
+        );
+      });
+
+      section.appendChild(header);
+
       const subGrid = document.createElement('div');
       subGrid.className = 'image-lib-grid';
       groups[key].forEach(img => {
@@ -838,8 +912,8 @@ Views.data = {
   },
 
   async uploadImages(files) {
-    const groupSel = document.getElementById('image-lib-group');
-    const group = groupSel ? groupSel.value : '';
+    const groupInp = document.getElementById('image-lib-group');
+    const group = groupInp ? groupInp.value.trim() : '';
     let added = 0, skipped = 0;
     for (const file of [...files]) {
       if (!file.type.startsWith('image/')) { skipped++; continue; }
