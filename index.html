@@ -252,6 +252,17 @@
       <div id="fc-selector" class="dataset-selector">
         <h2>Choose a Deck</h2>
         <div id="fc-deck-list" class="deck-picker-list"></div>
+        <div id="fc-level-filter" class="level-filter-panel hidden">
+          <button id="btn-fc-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
+          <h3 id="fc-lf-deck-name" class="lf-deck-name"></h3>
+          <p class="text-muted lf-hint">Select which levels to include — click a badge to toggle:</p>
+          <div id="fc-lf-badges" class="lf-badges"></div>
+          <div class="lf-footer">
+            <button id="btn-fc-lf-all" class="btn btn-ghost btn-sm">All</button>
+            <button id="btn-fc-lf-none" class="btn btn-ghost btn-sm">None</button>
+            <button id="btn-fc-lf-start" class="btn btn-primary">Start</button>
+          </div>
+        </div>
       </div>
 
       <!-- step 2: play -->
@@ -295,6 +306,17 @@
       <div id="quiz-selector" class="dataset-selector">
         <h2>Choose a Deck</h2>
         <div id="quiz-deck-list" class="deck-picker-list"></div>
+        <div id="quiz-level-filter" class="level-filter-panel hidden">
+          <button id="btn-quiz-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
+          <h3 id="quiz-lf-deck-name" class="lf-deck-name"></h3>
+          <p class="text-muted lf-hint">Select which levels to include — click a badge to toggle:</p>
+          <div id="quiz-lf-badges" class="lf-badges"></div>
+          <div class="lf-footer">
+            <button id="btn-quiz-lf-all" class="btn btn-ghost btn-sm">All</button>
+            <button id="btn-quiz-lf-none" class="btn btn-ghost btn-sm">None</button>
+            <button id="btn-quiz-lf-start" class="btn btn-primary">Start</button>
+          </div>
+        </div>
         <div class="quiz-options">
           <label class="quiz-option-label">
             <input type="checkbox" id="quiz-opt-show-correct" checked>

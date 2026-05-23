@@ -674,6 +674,36 @@ select { cursor: pointer; }
 .dpi-meta { font-size: .82rem; color: var(--clr-text-muted); }
 .dpi-arrow { color: var(--clr-primary); font-size: 1.3rem; }
 
+/* ── Level Filter Panel ───────────────────────────────────── */
+.level-filter-panel { margin-top: 1rem; }
+.lf-deck-name { font-size: 1.05rem; font-weight: 700; margin: .75rem 0 .3rem; }
+.lf-hint { font-size: .86rem; margin-bottom: .75rem; }
+.lf-badges { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.lf-badge-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .15s, transform .1s;
+  display: inline-flex !important;
+}
+.lf-badge-toggle:hover { transform: scale(1.06); }
+.lf-badge-off { opacity: .28; text-decoration: line-through; }
+.lf-badge-unlabeled {
+  background: var(--clr-surface) !important;
+  color: var(--clr-text-muted) !important;
+  border: 1.5px solid var(--clr-border);
+}
+.lf-footer { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.report-level-tag {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .15em .55em;
+  border-radius: var(--radius-full);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
 /* ── FLASHCARDS ───────────────────────────────────────────────── */
 .fc-player {}
 .fc-top-bar {

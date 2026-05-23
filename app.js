@@ -730,6 +730,139 @@ function esc(s) {
 }
 
 // ============================================================
+// LEVEL FILTER HELPER
+// ============================================================
+const LevelFilter = {
+  _pending: {}, // { 'fc': { ds, eligibleFn }, 'quiz': { ds, eligibleFn } }
+
+  // Build and show the filter panel.
+  // eligibleFn(row) pre-filters rows before counting (e.g. must have wrongAnswers for quiz).
+  show(prefix, ds, eligibleFn) {
+    LevelFilter._pending[prefix] = { ds, eligibleFn };
+    const levels    = ds.levels || [];
+    const allRows   = eligibleFn ? ds.rows.filter(eligibleFn) : ds.rows;
+    const badgesEl  = document.getElementById(`${prefix}-lf-badges`);
+    const startBtn  = document.getElementById(`btn-${prefix}-lf-start`);
+    const nameEl    = document.getElementById(`${prefix}-lf-deck-name`);
+
+    nameEl.textContent = ds.name;
+    badgesEl.innerHTML = '';
+
+    const update = () => {
+      const filter = LevelFilter.readFilter(prefix);
+      const count  = allRows.filter(r => LevelFilter._rowMatches(r, filter)).length;
+      startBtn.textContent = `Start (${count})`;
+      startBtn.disabled    = count === 0;
+    };
+
+    levels.forEach(lv => {
+      const b = document.createElement('span');
+      b.className          = 'level-badge lf-badge-toggle';
+      b.textContent        = lv.name;
+      b.style.background   = lv.color;
+      b.style.color        = contrastColor(lv.color);
+      b.dataset.level      = lv.name;
+      b.dataset.selected   = '1';
+      b.addEventListener('click', () => {
+        const on = b.dataset.selected !== '1';
+        b.dataset.selected = on ? '1' : '0';
+        b.classList.toggle('lf-badge-off', !on);
+        update();
+      });
+      badgesEl.appendChild(b);
+    });
+
+    // "Unlabeled" toggle if any eligible rows have no level
+    const unlabeled = allRows.filter(r => !r.level);
+    if (unlabeled.length) {
+      const b = document.createElement('span');
+      b.className        = 'level-badge lf-badge-toggle lf-badge-unlabeled';
+      b.textContent      = `Unlabeled (${unlabeled.length})`;
+      b.dataset.noLevel  = '1';
+      b.dataset.selected = '1';
+      b.addEventListener('click', () => {
+        const on = b.dataset.selected !== '1';
+        b.dataset.selected = on ? '1' : '0';
+        b.classList.toggle('lf-badge-off', !on);
+        update();
+      });
+      badgesEl.appendChild(b);
+    }
+
+    update();
+    document.getElementById(`${prefix}-deck-list`).classList.add('hidden');
+    document.getElementById(`${prefix}-level-filter`).classList.remove('hidden');
+  },
+
+  hide(prefix) {
+    document.getElementById(`${prefix}-level-filter`).classList.add('hidden');
+    document.getElementById(`${prefix}-deck-list`).classList.remove('hidden');
+  },
+
+  selectAll(prefix) {
+    document.querySelectorAll(`#${prefix}-lf-badges .lf-badge-toggle`).forEach(b => {
+      b.dataset.selected = '1';
+      b.classList.remove('lf-badge-off');
+    });
+    LevelFilter._updateCount(prefix);
+  },
+
+  selectNone(prefix) {
+    document.querySelectorAll(`#${prefix}-lf-badges .lf-badge-toggle`).forEach(b => {
+      b.dataset.selected = '0';
+      b.classList.add('lf-badge-off');
+    });
+    LevelFilter._updateCount(prefix);
+  },
+
+  _updateCount(prefix) {
+    const p = LevelFilter._pending[prefix];
+    if (!p) return;
+    const allRows = p.eligibleFn ? p.ds.rows.filter(p.eligibleFn) : p.ds.rows;
+    const filter  = LevelFilter.readFilter(prefix);
+    const count   = allRows.filter(r => LevelFilter._rowMatches(r, filter)).length;
+    const startBtn = document.getElementById(`btn-${prefix}-lf-start`);
+    if (startBtn) { startBtn.textContent = `Start (${count})`; startBtn.disabled = count === 0; }
+  },
+
+  readFilter(prefix) {
+    const badges = document.querySelectorAll(`#${prefix}-lf-badges .lf-badge-toggle`);
+    const selectedLevels = [];
+    let includeUnlabeled = false;
+    badges.forEach(b => {
+      if (b.dataset.selected === '1') {
+        if (b.dataset.noLevel) includeUnlabeled = true;
+        else selectedLevels.push(b.dataset.level);
+      }
+    });
+    return { levels: selectedLevels, includeUnlabeled };
+  },
+
+  _rowMatches(row, filter) {
+    if (!row.level) return filter.includeUnlabeled;
+    return filter.levels.includes(row.level);
+  },
+
+  applyFilter(rows, filter) {
+    if (!filter) return rows;
+    return rows.filter(r => LevelFilter._rowMatches(r, filter));
+  },
+
+  // Returns a display label like "Easy, Medium" when filtering, null when everything is included.
+  filterLabel(ds, filter) {
+    if (!filter) return null;
+    const levels         = ds.levels || [];
+    const unlabeledExist = ds.rows.some(r => !r.level);
+    const allSelected    = filter.levels.length === levels.length &&
+                           (!unlabeledExist || filter.includeUnlabeled);
+    if (allSelected) return null;
+    const parts = [...filter.levels];
+    if (filter.includeUnlabeled) parts.push('Unlabeled');
+    return parts.join(', ') || null;
+  }
+};
+
+// ============================================================
 // VIEW: HOME
 // ============================================================
 const Views = {};
@@ -1956,18 +2089,28 @@ Views.flashcards = {
   onEnter() {
     document.getElementById('fc-selector').classList.remove('hidden');
     document.getElementById('fc-player').classList.add('hidden');
+    document.getElementById('fc-level-filter').classList.add('hidden');
+    document.getElementById('fc-deck-list').classList.remove('hidden');
     renderDatasetPicker(document.getElementById('fc-deck-list'), meta => {
-      Views.flashcards.start(meta.id);
+      Views.flashcards.showLevelFilter(meta.id);
     });
   },
 
-  async start(datasetId) {
+  async showLevelFilter(datasetId) {
     const ds = await Storage.getDataset(datasetId);
     if (!ds) { Toast.show('Could not load dataset', 'error'); return; }
+    if (!(ds.levels || []).length) {
+      Views.flashcards.startWithDs(ds, null);
+      return;
+    }
+    LevelFilter.show('fc', ds, null);
+  },
 
-    State.fc.datasetId = datasetId;
+  async startWithDs(ds, levelFilter) {
+    const filteredRows = LevelFilter.applyFilter(ds.rows, levelFilter);
+    State.fc.datasetId = ds.id;
     State.fc.levels    = ds.levels || [];
-    State.fc.questions = shuffle(await resolveLocalImages(ds.rows));
+    State.fc.questions = shuffle(await resolveLocalImages(filteredRows));
     State.fc.idx       = 0;
     State.fc.flipped   = false;
 
@@ -1981,7 +2124,8 @@ Views.flashcards = {
       userName: State.currentUser ? State.currentUser.name : 'Anonymous',
       datasetId: ds.id, datasetName: ds.name, mode: 'flashcard',
       startedAt: new Date().toISOString(), endedAt: null,
-      cardsViewed: 0, totalCards: ds.rows.length
+      cardsViewed: 0, totalCards: filteredRows.length,
+      levelFilterLabel: LevelFilter.filterLabel(ds, levelFilter)
     };
     State.fc.sessionRef = session;
   },
@@ -2051,9 +2195,11 @@ Views.flashcards = {
   exit() {
     Views.flashcards.finishSession();
     document.getElementById('fc-player').classList.add('hidden');
+    document.getElementById('fc-level-filter').classList.add('hidden');
+    document.getElementById('fc-deck-list').classList.remove('hidden');
     document.getElementById('fc-selector').classList.remove('hidden');
     renderDatasetPicker(document.getElementById('fc-deck-list'), meta => {
-      Views.flashcards.start(meta.id);
+      Views.flashcards.showLevelFilter(meta.id);
     });
   },
 
@@ -2076,24 +2222,42 @@ Views.quiz = {
     document.getElementById('quiz-selector').classList.remove('hidden');
     document.getElementById('quiz-player').classList.add('hidden');
     document.getElementById('quiz-summary').classList.add('hidden');
+    document.getElementById('quiz-level-filter').classList.add('hidden');
+    document.getElementById('quiz-deck-list').classList.remove('hidden');
     renderDatasetPicker(document.getElementById('quiz-deck-list'), meta => {
-      Views.quiz.start(meta.id, meta.name);
+      Views.quiz.showLevelFilter(meta.id, meta.name);
     });
   },
 
-  async start(datasetId, datasetName) {
+  async showLevelFilter(datasetId) {
     const ds = await Storage.getDataset(datasetId);
     if (!ds) { Toast.show('Could not load dataset', 'error'); return; }
     if (!ds.rows.some(r => r.wrongAnswers.length > 0)) {
       Toast.show('This deck has no wrong answers – cannot run quiz mode', 'warning', 4000);
       return;
     }
+    if (!(ds.levels || []).length) {
+      Views.quiz.startWithDs(ds, null);
+      return;
+    }
+    LevelFilter.show('quiz', ds, r => r.wrongAnswers.length > 0);
+  },
 
+  async startWithDs(ds, levelFilter) {
     const resolvedRows = await resolveLocalImages(ds.rows);
+    const eligible   = resolvedRows.filter(r => r.wrongAnswers.length > 0);
+    const questions  = LevelFilter.applyFilter(eligible, levelFilter);
+
+    if (!questions.length) {
+      Toast.show('No questions match the selected levels', 'warning', 4000);
+      return;
+    }
+
     State.qz = {
-      datasetId, datasetName: ds.name,
+      datasetId: ds.id, datasetName: ds.name,
       levels: ds.levels || [],
-      questions: resolvedRows.filter(r => r.wrongAnswers.length > 0),
+      levelFilterLabel: LevelFilter.filterLabel(ds, levelFilter),
+      questions,
       pool: [], idx: 0,
       results: [], allAttempts: [],
       score: { correct: 0, total: 0 },
@@ -2310,7 +2474,8 @@ Views.quiz = {
       endedAt:    new Date().toISOString(),
       finalScore: { correct: firstC, total: State.qz.questions.length },
       totalRounds: State.qz.round,
-      attempts:   State.qz.allAttempts
+      attempts:   State.qz.allAttempts,
+      levelFilterLabel: State.qz.levelFilterLabel || null
     };
     // overwrite any prior save for the same session
     const existing = Storage.getSessions().filter(s => s.id !== sess.id);
@@ -2381,12 +2546,17 @@ Views.reports = {
         scoreHtml = `<span class="report-score-pill">${s.cardsViewed || 0}/${s.totalCards || '?'} cards</span>`;
       }
 
+      const levelTag = s.levelFilterLabel
+        ? `<span class="report-level-tag">\ud83c\udff7 ${esc(s.levelFilterLabel)}</span>`
+        : '';
+
       div.innerHTML = `
         <div class="report-item-header">
           <span class="report-mode-badge ${isQuiz ? 'badge-quiz' : 'badge-flashcard'}">${isQuiz ? 'Quiz' : 'Flashcards'}</span>
           <span class="report-name">${esc(s.datasetName || 'Unknown')}</span>
           <span class="report-date">${fmtDateTime(s.startedAt)}</span>
           <span class="text-muted" style="font-size:.85rem">${esc(s.userName || 'Anonymous')}</span>
+          ${levelTag}
           ${scoreHtml}
           <span class="report-expand-arrow">›</span>
         </div>
@@ -2402,7 +2572,10 @@ Views.reports = {
 
   buildDetail(session) {
     if (session.mode === 'flashcard') {
-      return `<p style="padding:.5rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>`;
+      const levelLine = session.levelFilterLabel
+        ? `<p style="font-size:.83rem;color:var(--clr-text-muted);margin:.2rem 0">🏷 Levels: ${esc(session.levelFilterLabel)}</p>`
+        : '';
+      return `${levelLine}<p style="padding:.5rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>`;
     }
     if (!session.attempts || !session.attempts.length) return '<p>No attempt detail available.</p>';
     // header: rounds taken
@@ -2652,6 +2825,26 @@ function wireEvents() {
   document.getElementById('btn-builder-close').addEventListener('click',  () => Views.builder.closeEditor());
 
   // ── Flashcard view ──
+  // ── Level Filter (Flashcards) ──
+  document.getElementById('btn-fc-lf-back').addEventListener('click',  () => LevelFilter.hide('fc'));
+  document.getElementById('btn-fc-lf-all').addEventListener('click',   () => LevelFilter.selectAll('fc'));
+  document.getElementById('btn-fc-lf-none').addEventListener('click',  () => LevelFilter.selectNone('fc'));
+  document.getElementById('btn-fc-lf-start').addEventListener('click', () => {
+    const p = LevelFilter._pending.fc;
+    if (!p) return;
+    Views.flashcards.startWithDs(p.ds, LevelFilter.readFilter('fc'));
+  });
+
+  // ── Level Filter (Quiz) ──
+  document.getElementById('btn-quiz-lf-back').addEventListener('click',  () => LevelFilter.hide('quiz'));
+  document.getElementById('btn-quiz-lf-all').addEventListener('click',   () => LevelFilter.selectAll('quiz'));
+  document.getElementById('btn-quiz-lf-none').addEventListener('click',  () => LevelFilter.selectNone('quiz'));
+  document.getElementById('btn-quiz-lf-start').addEventListener('click', () => {
+    const p = LevelFilter._pending.quiz;
+    if (!p) return;
+    Views.quiz.startWithDs(p.ds, LevelFilter.readFilter('quiz'));
+  });
+
   document.getElementById('fc-card').addEventListener('click', () => Views.flashcards.flip());
   document.getElementById('fc-card').addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); Views.flashcards.flip(); }
