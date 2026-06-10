@@ -376,6 +376,127 @@ async function exportGroupZip(groupName, images) {
 }
 
 // ============================================================
+// ZIP IMAGE HELPER
+// ============================================================
+/** Convert an ArrayBuffer + filename to a base64 data URI */
+async function arrBufToDataURI(arrBuf, filename) {
+  const ext  = (filename.split('.').pop() || '').toLowerCase();
+  const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+                 webp:'image/webp', svg:'image/svg+xml', bmp:'image/bmp',
+                 tif:'image/tiff', tiff:'image/tiff' }[ext] || 'image/' + ext;
+  return new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result);
+    reader.readAsDataURL(new Blob([arrBuf], { type: mime }));
+  });
+}
+
+// ============================================================
+// BUNDLE EXPORT  (deck CSV + referenced library images as ZIP)
+// ============================================================
+async function exportBundle(ds, filename, bundleFmt = 'csv') {
+  if (!window.JSZip) { Toast.show('ZIP library unavailable (offline?)', 'warning'); return; }
+
+  const deckName = filename || ds.name || 'deck';
+
+  // Collect every local library image reference in the deck
+  const localNames = new Set();
+  const collectCell = c => {
+    if (!c) return;
+    if (c.type === 'local-image') localNames.add(c.name);
+    if (c.type === 'image'  && c.fromLibrary) localNames.add(c.fromLibrary);
+    if (c.type === 'mixed'  && c.fromLibrary) localNames.add(c.fromLibrary);
+    if (c.type === 'mixed'  && c.localImage)  localNames.add(c.localImage);
+  };
+  ds.rows.forEach(r => {
+    collectCell(r.question);
+    collectCell(r.correctAnswer);
+    (r.wrongAnswers || []).forEach(collectCell);
+  });
+
+  const zip = new window.JSZip();
+
+  // Deck file (named after deck, CSV or XLSX)
+  if (bundleFmt === 'xlsx' && typeof XLSX === 'undefined') {
+    Toast.show('SheetJS not loaded \u2014 bundling as CSV instead', 'warning');
+    bundleFmt = 'csv';
+  }
+  if (bundleFmt === 'xlsx') {
+    const hasLevels = ds.levels && ds.levels.length > 0;
+    const toCell = c => {
+      if (!c) return '';
+      if (c.type === 'local-image') return `[LOCAL:${c.name}]`;
+      if (c.type === 'mixed') {
+        const imgPart = c.fromLibrary ? `[LOCAL:${c.fromLibrary}]`
+          : (c.localImage ? `[LOCAL:${c.localImage}]` : `[IMG:${c.src}]`);
+        return c.imgPosition === 'after' ? `${c.text}\n${imgPart}` : `${imgPart}\n${c.text}`;
+      }
+      if (c.type === 'image') return c.fromLibrary ? `[LOCAL:${c.fromLibrary}]` : c.src;
+      return c.text;
+    };
+    const xlsxRows = ds.rows.map(r => {
+      const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
+      if (hasLevels) cells.unshift(r.level || '');
+      return cells;
+    });
+    if (hasLevels) xlsxRows.unshift(['Level', 'Question', 'Correct Answer']);
+    const ws = XLSX.utils.aoa_to_sheet(xlsxRows);
+    Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => { ws[k].s = { alignment: { wrapText: true } }; });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    zip.file(deckName + '.xlsx', buf);
+  } else {
+    const csv = DataExport.datasetToCSV(ds);
+    zip.file(deckName + '.csv', '\uFEFF' + csv);
+  }
+
+  // Referenced library images under images/
+  let missing = 0;
+  const imageList = [];
+  for (const name of localNames) {
+    const imgRec = await Storage.getImage(name);
+    if (!imgRec) { missing++; imageList.push(`  MISSING: images/${name}`); continue; }
+    const m = imgRec.src.match(/^data:[^;]+;base64,(.+)$/);
+    if (m) {
+      zip.file('images/' + name, m[1], { base64: true });
+      imageList.push(`  images/${name}`);
+    }
+  }
+
+  // Manifest
+  const now    = new Date();
+  const pad    = n => String(n).padStart(2, '0');
+  const ts     = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const created = ds.createdAt ? ds.createdAt.replace('T', ' ').replace(/\..+/, '') : 'unknown';
+  const deckFile = deckName + (bundleFmt === 'xlsx' ? '.xlsx' : '.csv');
+  const levelNames = ds.levels && ds.levels.length ? ds.levels.map(l => l.name).join(', ') : 'none';
+  const manifest = [
+    'FlashQuiz Bundle Manifest',
+    '='.repeat(40),
+    `Deck name:   ${ds.name}`,
+    `Created:     ${created}`,
+    `Exported:    ${ts}`,
+    `Questions:   ${ds.rows.length}`,
+    `Levels:      ${levelNames}`,
+    `Deck format: ${bundleFmt.toUpperCase()}`,
+    '',
+    'Files included:',
+    `  ${deckFile}`,
+    ...imageList,
+    '',
+    missing
+      ? `WARNING: ${missing} image(s) referenced in deck not found in library and not included.`
+      : 'All referenced images included.',
+  ].join('\r\n');
+  zip.file('manifest.txt', manifest);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  DataExport._dl(blob, deckName + '.zip');
+  if (missing) Toast.show(`${missing} image(s) not found in library \u2014 omitted from bundle`, 'warning');
+}
+
+// ============================================================
 // APP STATE
 // ============================================================
 const State = {
@@ -444,6 +565,45 @@ const Toast = {
       t.classList.remove('toast-visible');
       t.addEventListener('transitionend', () => t.remove(), { once: true });
     }, ms);
+  },
+
+  /** Persistent toast: stays until dismissed. Includes copy-to-clipboard and ✕ button. */
+  showPersistent(msg, type = 'warning') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type} toast-persistent`;
+
+    const text = document.createElement('span');
+    text.className   = 'toast-text';
+    text.textContent = msg;
+
+    const copy = document.createElement('button');
+    copy.className   = 'toast-btn';
+    copy.title       = 'Copy to clipboard';
+    copy.textContent = '📋';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(msg).then(() => {
+        copy.textContent = '✓';
+        setTimeout(() => { copy.textContent = '📋'; }, 1500);
+      });
+    });
+
+    const dismiss = document.createElement('button');
+    dismiss.className   = 'toast-btn';
+    dismiss.title       = 'Dismiss';
+    dismiss.textContent = '✕';
+    dismiss.addEventListener('click', () => {
+      t.classList.remove('toast-visible');
+      t.addEventListener('transitionend', () => t.remove(), { once: true });
+    });
+
+    t.appendChild(text);
+    t.appendChild(copy);
+    t.appendChild(dismiss);
+    c.appendChild(t);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => t.classList.add('toast-visible'));
+    });
   }
 };
 
@@ -598,7 +758,7 @@ const DataExport = {
 
   downloadCSV() {
     const csv  = DataExport._toCSV(DataExport._sampleRows());
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
     DataExport._dl(blob, 'sample-flashquiz.csv');
   },
 
@@ -973,6 +1133,7 @@ Views.data = {
         <div class="dataset-actions">
           <button class="btn btn-secondary" data-action="preview" data-id="${m.id}">Preview</button>
           <button class="btn btn-secondary" data-action="export"  data-id="${m.id}">⬇ CSV</button>
+          <button class="btn btn-secondary" data-action="bundle"  data-id="${m.id}">⬇ Bundle</button>
           <button class="btn btn-danger"    data-action="delete"  data-id="${m.id}">Delete</button>
         </div>`;
       list.appendChild(div);
@@ -996,11 +1157,16 @@ Views.data = {
           const ds = await Storage.getDataset(id);
           if (!ds) return;
           const csv  = DataExport.datasetToCSV(ds);
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
           const url  = URL.createObjectURL(blob);
           const a    = Object.assign(document.createElement('a'), { href: url, download: ds.name + '.csv' });
           document.body.appendChild(a); a.click(); a.remove();
           URL.revokeObjectURL(url);
+
+        } else if (action === 'bundle') {
+          const ds = await Storage.getDataset(id);
+          if (!ds) return;
+          await exportBundle(ds);
 
         } else if (action === 'preview') {
           const ds = await Storage.getDataset(id);
@@ -1167,6 +1333,22 @@ Views.data = {
     const group = groupInp ? groupInp.value.trim() : '';
     let added = 0, skipped = 0;
     for (const file of [...files]) {
+      // ZIP → unpack images into the current group (or zip filename as group name)
+      if (/\.zip$/i.test(file.name)) {
+        if (!window.JSZip) { Toast.show('ZIP support requires JSZip (offline?)', 'warning'); skipped++; continue; }
+        const buf     = await readFileBuffer(file);
+        const zip     = await window.JSZip.loadAsync(buf);
+        const zipGroup = group || file.name.replace(/\.zip$/i, '');
+        for (const entry of Object.values(zip.files)) {
+          if (entry.dir) continue;
+          const fname = entry.name.split('/').pop();
+          if (!/\.(png|jpg|jpeg|gif|webp|svg|bmp|tiff?)$/i.test(fname)) continue;
+          const src = await arrBufToDataURI(await entry.async('arraybuffer'), fname);
+          await Storage.saveImage(fname, src, zipGroup);
+          added++;
+        }
+        continue;
+      }
       if (!file.type.startsWith('image/')) { skipped++; continue; }
       if (file.size > 5 * 1024 * 1024) {
         Toast.show(`"${file.name}" exceeds 5 MB – skipped`, 'warning');
@@ -1192,9 +1374,17 @@ Views.data = {
     status.textContent = 'Parsing file…';
 
     try {
-      let ds;
       const name = file.name.replace(/\.[^.]+$/, '');
 
+      if (/\.zip$/i.test(file.name)) {
+        if (!window.JSZip) throw new Error('ZIP support requires the JSZip library. Please connect to the internet.');
+        const buf = await readFileBuffer(file);
+        const zip = await window.JSZip.loadAsync(buf);
+        await Views.data._importZip(zip, name, status);
+        return;
+      }
+
+      let ds;
       if (/\.(xlsx|xls)$/i.test(file.name)) {
         const buf = await readFileBuffer(file);
         ds = FileParser.parseExcel(buf, name);
@@ -1215,6 +1405,100 @@ Views.data = {
     } finally {
       idle.classList.remove('hidden');
       working.classList.add('hidden');
+    }
+  },
+
+  /** Handle a JSZip object: bundle (deck + images) or image-only ZIP */
+  async _importZip(zip, zipName, statusEl) {
+    const setStatus = t => { if (statusEl) statusEl.textContent = t; };
+    const entries   = Object.values(zip.files).filter(f => !f.dir);
+    const deckEntry = entries.find(f => /\.(csv|xlsx|xls)$/i.test(f.name));
+
+    // ── Parse manifest if present ───────────────────────────────
+    const manifestEntry   = entries.find(f => f.name.toLowerCase().endsWith('manifest.txt'));
+    const manifestMissing = []; // files listed in manifest but absent from ZIP
+    const manifestExtra   = []; // content files in ZIP but not listed in manifest
+    if (manifestEntry) {
+      const mText = await manifestEntry.async('string');
+      // Extract every content path listed in the manifest
+      const listedPaths = new Set();
+      for (const line of mText.split(/\r?\n/)) {
+        const m = line.match(/^\s+(images\/\S+|\S+\.(csv|xlsx|xls))\s*$/i);
+        if (!m) continue;
+        listedPaths.add(m[1].trim());
+      }
+      const zipFileNames = new Set(entries.map(e => e.name.replace(/\\/g, '/')));
+      // Missing: listed in manifest but not in ZIP
+      for (const p of listedPaths) {
+        if (!zipFileNames.has(p)) manifestMissing.push(p);
+      }
+      // Extra: content files in ZIP not listed in manifest (exclude manifest.txt itself)
+      for (const entry of entries) {
+        const normalized = entry.name.replace(/\\/g, '/');
+        if (/manifest\.txt$/i.test(normalized)) continue;
+        if (!listedPaths.has(normalized)) manifestExtra.push(normalized);
+      }
+    }
+
+    if (deckEntry) {
+      // ── Bundle: restore images then import deck ──────────────
+      setStatus('Importing images…');
+      let imgCount = 0;
+      for (const entry of entries) {
+        const fname = entry.name.split('/').pop();
+        if (!/\.(png|jpg|jpeg|gif|webp|svg|bmp|tiff?)$/i.test(fname)) continue;
+        const src = await arrBufToDataURI(await entry.async('arraybuffer'), fname);
+        await Storage.saveImage(fname, src, '');
+        imgCount++;
+      }
+      if (imgCount) Views.data.renderImageLib();
+
+      setStatus('Parsing deck…');
+      const deckName = deckEntry.name.split('/').pop().replace(/\.[^.]+$/, '');
+      let ds;
+      if (/\.(xlsx|xls)$/i.test(deckEntry.name)) {
+        const buf = await deckEntry.async('arraybuffer');
+        ds = FileParser.parseExcel(buf, deckName);
+      } else {
+        const txt = await deckEntry.async('string');
+        const raw = FileParser.parseCSV(txt.replace(/^\uFEFF/, ''));
+        ds = FileParser.rawToDataset(raw, deckName);
+      }
+      if (!ds.rows.length) throw new Error('No valid rows found in the deck file inside the ZIP.');
+
+      setStatus(`Saving ${ds.rows.length} questions…`);
+      await Storage.saveDataset(ds);
+      Views.data.renderList();
+
+      const imgNote = imgCount ? `, ${imgCount} image(s)` : '';
+      Toast.show(`Imported "${ds.name}" – ${ds.rows.length} question(s)${imgNote}`, 'success');
+
+      if (manifestMissing.length) {
+        Toast.showPersistent(`⚠ ${manifestMissing.length} file(s) listed in manifest were missing from the ZIP: ${manifestMissing.join(', ')}`, 'warning');
+      }
+      if (manifestExtra.length) {
+        Toast.showPersistent(`ℹ ${manifestExtra.length} file(s) in the ZIP were not listed in the manifest: ${manifestExtra.join(', ')}`, 'info');
+      }
+    } else {
+      // ── Image-only ZIP: import all images as a library group ──
+      setStatus('Importing images from ZIP…');
+      let imgCount = 0, skipped = 0;
+      for (const entry of entries) {
+        const fname = entry.name.split('/').pop();
+        if (!/\.(png|jpg|jpeg|gif|webp|svg|bmp|tiff?)$/i.test(fname)) { skipped++; continue; }
+        const src = await arrBufToDataURI(await entry.async('arraybuffer'), fname);
+        await Storage.saveImage(fname, src, zipName);
+        imgCount++;
+      }
+      Views.data.renderImageLib();
+      Toast.show(`Imported ${imgCount} image(s) to library group "${zipName}"`, 'success');
+      if (skipped) Toast.show(`${skipped} non-image file(s) skipped`, 'warning');
+      if (manifestMissing.length) {
+        Toast.showPersistent(`⚠ ${manifestMissing.length} file(s) listed in manifest were missing from the ZIP: ${manifestMissing.join(', ')}`, 'warning');
+      }
+      if (manifestExtra.length) {
+        Toast.showPersistent(`ℹ ${manifestExtra.length} file(s) in the ZIP were not listed in the manifest: ${manifestExtra.join(', ')}`, 'info');
+      }
     }
   }
 };
@@ -2045,15 +2329,27 @@ Views.builder = {
       </div>
       <div>
         <label style="display:block;font-size:.85rem;margin-bottom:.4rem;color:var(--clr-text-muted)">Format</label>
-        <div style="display:flex;gap:1.2rem">
+        <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
             <input type="radio" name="export-fmt" value="csv" checked> CSV (.csv)
           </label>
           <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
             <input type="radio" name="export-fmt" value="xlsx"> Excel (.xlsx)
           </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+            <input type="radio" name="export-fmt" value="bundle"> Bundle ZIP (deck + images)
+          </label>
         </div>
-        <p style="font-size:.78rem;color:var(--clr-text-muted);margin:.4rem 0 0">Excel preserves multi-line cells (text‫+‪image) correctly when opened in Excel.</p>
+        <div id="bundle-fmt-row" style="display:none;margin-top:.5rem;padding:.4rem .6rem;background:var(--clr-surface-2,#f0f0f0);border-radius:.4rem">
+          <span style="font-size:.82rem;color:var(--clr-text-muted);margin-right:.6rem">Deck format inside ZIP:</span>
+          <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.85rem;margin-right:.8rem">
+            <input type="radio" name="bundle-deck-fmt" value="csv" checked> CSV
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.85rem">
+            <input type="radio" name="bundle-deck-fmt" value="xlsx"> Excel (.xlsx)
+          </label>
+        </div>
+        <p style="font-size:.78rem;color:var(--clr-text-muted);margin:.4rem 0 0">Excel preserves multi-line cells (text&thinsp;+&thinsp;image) correctly when opened in Excel. Bundle packages the deck and all its library images into one ZIP for easy transfer.</p>
       </div>`;
 
     Modal.show({ title: '⬇ Export Deck', body: wrap, wide: true, buttons: [
@@ -2061,12 +2357,15 @@ Views.builder = {
       { label: 'Export', cls: 'btn-primary', action: () => {
         const filename = (document.getElementById('export-filename').value.trim() || draft.name || 'deck');
         const fmt = wrap.querySelector('input[name="export-fmt"]:checked').value;
-        if (fmt === 'xlsx') {
+        if (fmt === 'bundle') {
+          const bundleDeckFmt = wrap.querySelector('input[name="bundle-deck-fmt"]:checked').value;
+          exportBundle(draft, filename, bundleDeckFmt);
+        } else if (fmt === 'xlsx') {
           if (typeof XLSX === 'undefined') { Toast.show('SheetJS not loaded — use CSV instead', 'warning'); return; }
           DataExport.datasetToXLSX(draft, filename);
         } else {
           const csv  = DataExport.datasetToCSV(draft);
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
           const url  = URL.createObjectURL(blob);
           const a    = Object.assign(document.createElement('a'), { href: url, download: filename + '.csv' });
           document.body.appendChild(a); a.click(); a.remove();
@@ -2077,6 +2376,14 @@ Views.builder = {
     setTimeout(() => {
       const inp = document.getElementById('export-filename');
       if (inp) { inp.select(); inp.focus(); }
+      // Show/hide bundle sub-options when format radios change
+      const fmtRadios    = wrap.querySelectorAll('input[name="export-fmt"]');
+      const bundleFmtRow = wrap.querySelector('#bundle-fmt-row');
+      const toggleBundle = () => {
+        const isBundle = wrap.querySelector('input[name="export-fmt"]:checked')?.value === 'bundle';
+        bundleFmtRow.style.display = isBundle ? 'block' : 'none';
+      };
+      fmtRadios.forEach(r => r.addEventListener('change', toggleBundle));
     }, 50);
   },
 

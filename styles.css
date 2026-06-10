@@ -1403,6 +1403,32 @@ button.level-badge {
 .toast.toast-error   { background: var(--clr-error); }
 .toast.toast-warning { background: var(--clr-warning); color: #1c1917; }
 
+.toast.toast-persistent {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  max-width: 420px;
+}
+.toast.toast-persistent .toast-text {
+  flex: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+.toast-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .9rem;
+  padding: .1em .25em;
+  border-radius: .25rem;
+  opacity: .75;
+  transition: opacity .15s;
+  color: inherit;
+}
+.toast-btn:hover { opacity: 1; }
+
 /* ── Empty states ──────────────────────────────────────────────── */
 .empty-state {
   text-align: center;

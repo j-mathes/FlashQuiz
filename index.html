@@ -100,10 +100,10 @@
         <p class="text-muted">Columns: <strong>Question</strong>, <strong>Correct Answer</strong>, Wrong Answer 1, Wrong Answer 2…</p>
         <p class="text-muted">Image cells: use a URL starting with <code>http</code>, a data URI, or <code>[IMG:url]</code></p>
         <div class="upload-area" id="upload-area">
-          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" hidden>
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.zip" hidden>
           <div id="upload-idle">
             <div class="upload-icon">📤</div>
-            <p>Drop a <strong>CSV</strong> or <strong>Excel</strong> file here<br>or <button class="link-btn" id="btn-browse">browse</button></p>
+            <p>Drop a <strong>CSV</strong>, <strong>Excel</strong>, or <strong>Bundle ZIP</strong> here<br>or <button class="link-btn" id="btn-browse">browse</button></p>
           </div>
           <div id="upload-working" class="hidden">
             <div class="spinner"></div>
@@ -132,7 +132,7 @@
                  placeholder="General (or type a name)" autocomplete="off">
           <datalist id="image-lib-group-list"></datalist>
           <button id="btn-upload-images" class="btn btn-primary">+ Upload Images</button>
-          <input type="file" id="image-lib-input" accept="image/*" multiple hidden>
+          <input type="file" id="image-lib-input" accept="image/*,.zip" multiple hidden>
         </div>
         <div id="image-lib-grid"></div>
       </div>
