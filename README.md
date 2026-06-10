@@ -16,7 +16,7 @@ A browser-based flashcard and quiz app. No server, no build step, no frameworks 
 
 ## Data Format
 
-Import a **CSV** or **Excel** (`.xlsx` / `.xls`) file. Use **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a working example.
+Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a working example.
 
 | Column | Contents |
 |---|---|
@@ -101,13 +101,35 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 #### Saving & exporting
 - **💾 Save Deck** — overwrites the deck in place (rename here updates the name, no copy made)
 - **📋 Save as Copy** — saves a new deck named `"Copy of …"`
-- **⬇ Export** — choose **CSV** or **Excel (.xlsx)**; both can be re-imported into FlashQuiz
+- **⬇ Export** — choose from three formats:
+  - **CSV (.csv)** — plain text, UTF-8 with BOM so Excel opens special characters correctly
+  - **Excel (.xlsx)** — preserves multi-line cells (text + image) correctly when opened in Excel
+  - **Bundle ZIP (deck + images)** — packages the deck file and all referenced Image Library pictures into a single `.zip` for easy transfer; choose CSV or Excel as the deck format inside the ZIP
 
 ### Image Library
 - Upload images once (up to 5 MB each) from the **Data** page; stored in IndexedDB
 - Upload multiple images at once to a group using its **📤 Upload** button
+- **Drop a ZIP** onto the image upload area to bulk-import an entire image group at once
 - Reference in the builder via 📚 or in CSV/Excel with `[LOCAL:filename]`
+- Export a group as a ZIP using its **⬇ Export** button
 - Delete individual images at any time
+
+### Importing
+
+Drop or browse for any of the following on the **Data** page upload area:
+
+| File type | What happens |
+|---|---|
+| `.csv` | Parsed and saved as a new deck |
+| `.xlsx` / `.xls` | Parsed and saved as a new deck |
+| **Bundle ZIP** | Images restored to the library, then deck imported |
+| **Image-only ZIP** | All images imported as a library group named after the ZIP file |
+
+**Manifest checking** — Bundle ZIPs created by FlashQuiz include a `manifest.txt` listing every file that should be present. On import, the manifest is read and two checks are performed:
+- Files listed in the manifest but **missing from the ZIP** → ⚠ persistent warning (stays until dismissed)
+- Files present in the ZIP but **not listed in the manifest** → ℹ persistent info notice
+
+Both notices include a **📋 copy** button and a **✕ dismiss** button so the full list can be captured before closing.
 
 ### Users & Reports
 - Add named profiles to track sessions separately; switch users from the nav
