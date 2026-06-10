@@ -610,7 +610,7 @@ const DataExport = {
     const rows = DataExport._sampleRows();
     const ws   = XLSX.utils.aoa_to_sheet(rows);
     const wb   = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Quiz');
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
     const buf  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     DataExport._dl(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'sample-flashquiz.xlsx');
   },
@@ -661,8 +661,8 @@ const DataExport = {
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => {
       ws[k].s = { alignment: { wrapText: true } };
     });
-    const wb  = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, ds.name || 'Quiz');
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     DataExport._dl(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), (filename || ds.name || 'deck') + '.xlsx');
   },
