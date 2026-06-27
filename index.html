@@ -20,6 +20,7 @@
       <button class="nav-btn" data-view="quiz">Quiz</button>
       <button class="nav-btn" data-view="builder">Builder</button>
       <button class="nav-btn" data-view="reports">Reports</button>
+      <button class="nav-btn" data-view="settings">⚙ Settings</button>
       <button class="nav-btn nav-user" data-view="users" id="nav-user-btn">
         <span class="user-icon">👤</span>
         <span id="nav-user-name">Anonymous</span>
@@ -69,6 +70,11 @@
           <span class="hc-icon">👥</span>
           <span class="hc-title">Users</span>
           <span class="hc-desc">Manage profiles</span>
+        </button>
+        <button class="home-card" data-view="settings">
+          <span class="hc-icon">⚙</span>
+          <span class="hc-title">Settings</span>
+          <span class="hc-desc">Theme, fonts &amp; more</span>
         </button>
       </div>
     </section>
@@ -167,31 +173,31 @@
             <div class="builder-help-grid">
 
               <div class="builder-help-item">
-                <div class="builder-help-title">🖼 Upload an image</div>
+                <div class="builder-help-title">Upload an image</div>
                 <div class="builder-help-mock-row">
                   <div class="bhm-textarea"></div>
-                  <button class="bhm-btn bhm-btn-active" tabindex="-1">🖼</button>
-                  <button class="bhm-btn" tabindex="-1">📚</button>
+                  <button class="bhm-btn bhm-btn-active" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                  <button class="bhm-btn" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></button>
                 </div>
-                <p>Click <strong>🖼</strong> to upload any image file from your device (max 2 MB). The image is embedded directly in the card.</p>
+                <p>Click the <strong>image icon</strong> to upload any image file from your device (max 2 MB). The image is embedded directly in the card.</p>
               </div>
 
               <div class="builder-help-item">
-                <div class="builder-help-title">📚 Pick from Library</div>
+                <div class="builder-help-title">Pick from Library</div>
                 <div class="builder-help-mock-row">
                   <div class="bhm-textarea"></div>
-                  <button class="bhm-btn" tabindex="-1">🖼</button>
-                  <button class="bhm-btn bhm-btn-active" tabindex="-1">📚</button>
+                  <button class="bhm-btn" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                  <button class="bhm-btn bhm-btn-active" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></button>
                 </div>
-                <p>Click <strong>📚</strong> to choose an image you already uploaded to the Image Library (Data page). Stored as a filename reference — not embedded.</p>
+                <p>Click the <strong>grid icon</strong> to choose an image you already uploaded to the Image Library (Data page). Stored as a filename reference — not embedded.</p>
               </div>
 
               <div class="builder-help-item">
                 <div class="builder-help-title">Text + image (mixed)</div>
                 <div class="builder-help-mock-row">
                   <div class="bhm-textarea bhm-has-text"></div>
-                  <button class="bhm-btn bhm-btn-active" tabindex="-1">🖼</button>
-                  <button class="bhm-btn" tabindex="-1">📚</button>
+                  <button class="bhm-btn bhm-btn-active" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                  <button class="bhm-btn" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></button>
                 </div>
                 <p>Type text <em>and</em> pick an image in the same field. A position row appears below:</p>
                 <div class="builder-help-layouts">
@@ -222,7 +228,7 @@
                   <div class="bhm-preview"></div>
                   <button class="bhm-btn bhm-btn-danger" tabindex="-1">✕ Remove</button>
                 </div>
-                <p>When an image is set, a <strong>✕ Remove</strong> button appears beneath the preview. Click it to clear the image. Click <strong>🖼</strong> or <strong>📚</strong> at any time to replace the current image.</p>
+                <p>When an image is set, a <strong>✕ Remove</strong> button appears beneath the preview. Click it to clear the image. Click the <strong>image</strong> or <strong>grid</strong> icon at any time to replace the current image.</p>
               </div>
 
             </div>
@@ -394,6 +400,161 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ── SETTINGS ─────────────────────────────────────── -->
+    <section id="view-settings" class="view">
+      <div class="view-header">
+        <h2>Settings</h2>
+      </div>
+      <div class="settings-grid">
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">🎨 Appearance</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Theme</div>
+              <div class="setting-desc">Switch between light and dark mode</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-theme">
+                <button class="seg-btn" data-value="light">☀ Light</button>
+                <button class="seg-btn" data-value="dark">🌙 Dark</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">❓ Question Text</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font size</div>
+              <div class="setting-desc">Size of question text on flashcards and quiz cards</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-questionFontSize">
+                <button class="seg-btn" data-value="sm">S</button>
+                <button class="seg-btn" data-value="md">M</button>
+                <button class="seg-btn" data-value="lg">L</button>
+                <button class="seg-btn" data-value="xl">XL</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font family</div>
+              <div class="setting-desc">Typeface used for question text</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-questionFontFamily">
+                <button class="seg-btn" data-value="system">System</button>
+                <button class="seg-btn" data-value="serif">Serif</button>
+                <button class="seg-btn" data-value="mono">Mono</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font weight</div>
+              <div class="setting-desc">Regular or bold</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-questionFontWeight">
+                <button class="seg-btn" data-value="normal">Regular</button>
+                <button class="seg-btn" data-value="bold"><strong>Bold</strong></button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font style</div>
+              <div class="setting-desc">Normal or italic</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-questionFontStyle">
+                <button class="seg-btn" data-value="normal">Normal</button>
+                <button class="seg-btn" data-value="italic"><em>Italic</em></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">✅ Answer Text</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font size</div>
+              <div class="setting-desc">Size of answer text on flashcards and quiz choices</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-answerFontSize">
+                <button class="seg-btn" data-value="sm">S</button>
+                <button class="seg-btn" data-value="md">M</button>
+                <button class="seg-btn" data-value="lg">L</button>
+                <button class="seg-btn" data-value="xl">XL</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font family</div>
+              <div class="setting-desc">Typeface used for answer text</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-answerFontFamily">
+                <button class="seg-btn" data-value="system">System</button>
+                <button class="seg-btn" data-value="serif">Serif</button>
+                <button class="seg-btn" data-value="mono">Mono</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font weight</div>
+              <div class="setting-desc">Regular or bold</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-answerFontWeight">
+                <button class="seg-btn" data-value="normal">Regular</button>
+                <button class="seg-btn" data-value="bold"><strong>Bold</strong></button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font style</div>
+              <div class="setting-desc">Normal or italic</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-answerFontStyle">
+                <button class="seg-btn" data-value="normal">Normal</button>
+                <button class="seg-btn" data-value="italic"><em>Italic</em></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">🔄 Flashcard Flip</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Animation speed</div>
+              <div class="setting-desc">How fast the card flips when tapped or clicked</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-flipSpeed">
+                <button class="seg-btn" data-value="fast">Fast</button>
+                <button class="seg-btn" data-value="normal">Normal</button>
+                <button class="seg-btn" data-value="slow">Slow</button>
+                <button class="seg-btn" data-value="none">Off</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <button id="btn-settings-reset" class="btn btn-ghost mt-2">↺ Reset to Defaults</button>
     </section>
 
     <!-- ── REPORTS ────────────────────────────────────────── -->

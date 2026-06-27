@@ -44,7 +44,7 @@ Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **�
 - **Level filter** — when a deck has levels, choose which to study before starting
 
 ### Quiz Mode
-- Multiple-choice with shuffled answers; keyboard shortcuts **1–4**, **Enter / →**
+- Multiple-choice with answers listed vertically; keyboard shortcuts **1–4**, **Enter / →**
 - Score grid shows ⬜ unanswered / 🟩 correct / 🟥 incorrect per question
 - **↺ Retry Incorrect** re-runs only missed questions in a new round; continues until all correct
 - **Level filter** — when a deck has levels, choose which to include before starting
@@ -55,16 +55,19 @@ Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **�
 
 Build or edit decks in the app. Each field supports text, an image, or both. The toolbar and deck name stay **frozen at the top** as you scroll through questions.
 
+#### Search
+A search bar in the frozen header lets you filter questions in real time by typing any text that appears in the question, correct answer, or wrong answers. A result count (e.g. `3 of 45`) is shown while a search is active. The search works alongside the Missing Images and Missing Levels filters simultaneously.
+
 #### Adding an image — three ways
 
-**1. Upload a file (🖼)**
-Click **🖼** next to any field → choose a file (max 2 MB). Embedded as base64 in the deck.
+**1. Upload a file**
+Click the **image icon** (landscape in a frame) next to any field → choose a file (max 2 MB). Embedded as base64 in the deck.
 
-**2. Pick from the Image Library (📚)**
-Upload images once on the **Data** page (up to 5 MB each), then click **📚** in the builder to pick by name. Stored as a `[LOCAL:name]` reference.
+**2. Pick from the Image Library**
+Upload images once on the **Data** page (up to 5 MB each), then click the **grid icon** in the builder to pick by name. Stored as a `[LOCAL:name]` reference.
 
 **3. Mixed — text + image**
-Enter text *and* add an image via **🖼** or **📚**. A position toggle appears:
+Enter text *and* add an image. A position toggle appears:
 
 | Toggle | Result |
 |---|---|
@@ -77,10 +80,10 @@ In CSV/Excel, put text and the image tag on separate lines in the same cell — 
 #### Removing an image
 When an image is set, a **✕ Remove** button appears below the preview. Click it to clear the image while keeping any text.
 
-#### 🖼 Missing Images filter
-Click **🖼 Missing Images** in the toolbar to show only questions with a broken image reference (`[LOCAL:name]` not in the library, or an external URL that fails to load). The button shows **🔍 Checking…** while scanning, then highlights active. Click again to clear.
+#### Missing Images filter
+Click **🖼 Missing Images** in the search bar to show only questions with a broken image reference (`[LOCAL:name]` not in the library, or an external URL that fails to load). Highlights active while the filter is on; click again to clear.
 
-#### 🏷 Missing Levels filter
+#### Missing Levels filter
 Click **🏷 Missing Levels** to show only questions with no level assigned, or whose level no longer exists in the deck (e.g. after a rename or delete). Both filters can be active at the same time.
 
 #### 🏷 Levels
@@ -110,7 +113,7 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 - Upload images once (up to 5 MB each) from the **Data** page; stored in IndexedDB
 - Upload multiple images at once to a group using its **📤 Upload** button
 - **Drop a ZIP** onto the image upload area to bulk-import an entire image group at once
-- Reference in the builder via 📚 or in CSV/Excel with `[LOCAL:filename]`
+- Reference in the builder via the grid icon or in CSV/Excel with `[LOCAL:filename]`
 - Export a group as a ZIP using its **⬇ Export** button
 - Delete individual images at any time
 
@@ -131,6 +134,25 @@ Drop or browse for any of the following on the **Data** page upload area:
 
 Both notices include a **📋 copy** button and a **✕ dismiss** button so the full list can be captured before closing.
 
+### Settings
+
+Persistent preferences saved in `localStorage` and applied immediately on every change.
+
+| Setting | Options |
+|---|---|
+| **Theme** | Light / Dark |
+| **Question font size** | S / M / L / XL |
+| **Question font family** | System / Serif / Mono |
+| **Question font weight** | Regular / Bold |
+| **Question font style** | Normal / Italic |
+| **Answer font size** | S / M / L / XL |
+| **Answer font family** | System / Serif / Mono |
+| **Answer font weight** | Regular / Bold |
+| **Answer font style** | Normal / Italic |
+| **Flip animation speed** | Fast / Normal / Slow / Off |
+
+Question text settings apply to the flashcard front face and the quiz question card. Answer text settings apply to the flashcard back face and the quiz answer choices. A **↺ Reset to Defaults** button restores all settings at once.
+
 ### Users & Reports
 - Add named profiles to track sessions separately; switch users from the nav
 - Reports show every session with per-round breakdown; filter by user, deck, or mode
@@ -147,6 +169,7 @@ All data is browser-local — nothing leaves your device.
 | Image Library | IndexedDB |
 | Users, sessions, metadata | localStorage |
 | Quiz progress snapshots | localStorage (named users only) |
+| User settings | localStorage |
 
 ---
 

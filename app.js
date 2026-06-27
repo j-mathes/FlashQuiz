@@ -28,6 +28,10 @@ const COLOR_PALETTE = [
   '#bf360c','#e64a19','#ff5722','#ffab91','#4e342e','#6d4c41','#795548','#d7ccc8',
 ];
 
+// SVG icons used in the builder image buttons
+const ICON_IMG_UPLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>`;
+const ICON_IMG_LIBRARY = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`;
+
 // Returns '#ffffff' or '#1a1a1a' for readable text on top of a hex colour.
 function contrastColor(hex) {
   const r = parseInt(hex.slice(1,3),16);
@@ -495,6 +499,62 @@ async function exportBundle(ds, filename, bundleFmt = 'csv') {
   DataExport._dl(blob, deckName + '.zip');
   if (missing) Toast.show(`${missing} image(s) not found in library \u2014 omitted from bundle`, 'warning');
 }
+
+// ============================================================
+// SETTINGS
+// ============================================================
+const Settings = (() => {
+  const KEY = 'settings';
+  const DEFAULTS = {
+    theme:              'light',   // 'light' | 'dark'
+    questionFontSize:   'md',      // 'sm' | 'md' | 'lg' | 'xl'
+    questionFontFamily: 'system',  // 'system' | 'serif' | 'mono'
+    questionFontWeight: 'bold',    // 'normal' | 'bold'
+    questionFontStyle:  'normal',  // 'normal' | 'italic'
+    answerFontSize:     'md',      // 'sm' | 'md' | 'lg' | 'xl'
+    answerFontFamily:   'system',  // 'system' | 'serif' | 'mono'
+    answerFontWeight:   'normal',  // 'normal' | 'bold'
+    answerFontStyle:    'normal',  // 'normal' | 'italic'
+    flipSpeed:          'normal',  // 'fast' | 'normal' | 'slow' | 'none'
+  };
+
+  function load() {
+    return Object.assign({}, DEFAULTS, Storage.lsGet(KEY) || {});
+  }
+
+  function save(prefs) {
+    Storage.lsSet(KEY, prefs);
+  }
+
+  function apply(prefs) {
+    prefs = prefs || load();
+    const body = document.body;
+
+    body.classList.toggle('theme-dark', prefs.theme === 'dark');
+
+    const fontSizeMap   = { sm: '.95rem', md: '1.2rem', lg: '1.5rem', xl: '1.9rem' };
+    const fontFamilyMap = {
+      system: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      serif:  "Georgia, 'Times New Roman', serif",
+      mono:   "Consolas, 'Courier New', monospace",
+    };
+    const fontWeightMap  = { normal: '400', bold: '700' };
+    const fontStyleMap   = { normal: 'normal', italic: 'italic' };
+    const flipDurationMap = { fast: '.2s', normal: '.55s', slow: '1s', none: '0s' };
+
+    body.style.setProperty('--q-font-size',   fontSizeMap[prefs.questionFontSize]     || fontSizeMap.md);
+    body.style.setProperty('--q-font-family', fontFamilyMap[prefs.questionFontFamily] || fontFamilyMap.system);
+    body.style.setProperty('--q-font-weight', fontWeightMap[prefs.questionFontWeight] || '700');
+    body.style.setProperty('--q-font-style',  fontStyleMap[prefs.questionFontStyle]   || 'normal');
+    body.style.setProperty('--a-font-size',   fontSizeMap[prefs.answerFontSize]       || fontSizeMap.md);
+    body.style.setProperty('--a-font-family', fontFamilyMap[prefs.answerFontFamily]   || fontFamilyMap.system);
+    body.style.setProperty('--a-font-weight', fontWeightMap[prefs.answerFontWeight]   || '400');
+    body.style.setProperty('--a-font-style',  fontStyleMap[prefs.answerFontStyle]     || 'normal');
+    body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed]        || flipDurationMap.normal);
+  }
+
+  return { DEFAULTS, load, save, apply };
+})();
 
 // ============================================================
 // APP STATE
@@ -1715,8 +1775,8 @@ Views.builder = {
       return `
       <div class="wrong-answer-row" data-wi="${wi}">
         <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}\u2026">${wt}</textarea>
-        <button class="builder-img-btn" title="Upload image" data-role="wrong-img" data-wi="${wi}">🖼</button>
-        <button class="builder-img-btn" title="Pick from library" data-role="wrong-lib" data-wi="${wi}">📚</button>
+        <button class="builder-img-btn" title="Upload image" data-role="wrong-img" data-wi="${wi}">${ICON_IMG_UPLOAD}</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="wrong-lib" data-wi="${wi}">${ICON_IMG_LIBRARY}</button>
         ${wh ? `<img src="${esc(w.src || '')}" class="builder-img-preview" data-role="wrong-img-preview-${wi}"><button class="builder-img-clear" data-clear-for="wrong" data-wi="${wi}">\u2715 Remove</button>` : ''}
         ${wLibName ? `<span class="local-img-tag wrong-lib-tag">📚 ${esc(wLibName)}</span>` : ''}
         <div class="img-pos-row${w.type === 'mixed' ? '' : ' hidden'}" data-role="wrong-pos-row-${wi}">
@@ -1742,8 +1802,8 @@ Views.builder = {
       <div class="builder-field-label">Question</div>
       <div class="builder-field-row">
         <textarea class="q-text" rows="2" placeholder="Question text…">${qText}</textarea>
-        <button class="builder-img-btn" title="Upload image" data-role="q-img">🖼</button>
-        <button class="builder-img-btn" title="Pick from library" data-role="q-lib">📚</button>
+        <button class="builder-img-btn" title="Upload image" data-role="q-img">${ICON_IMG_UPLOAD}</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="q-lib">${ICON_IMG_LIBRARY}</button>
       </div>
       ${qHasImg ? `<img src="${esc(q.src || '')}" class="builder-img-preview" data-role="q-img-preview"><button class="builder-img-clear" data-clear-for="q">\u2715 Remove</button>` : ''}
       ${qLibName ? `<span class="local-img-tag q-lib-tag">📚 ${esc(qLibName)}</span>` : ''}
@@ -1757,8 +1817,8 @@ Views.builder = {
       <div class="builder-field-label" style="margin-top:.6rem">Correct Answer</div>
       <div class="builder-field-row">
         <textarea class="ca-text" rows="2" placeholder="Correct answer\u2026">${caText}</textarea>
-        <button class="builder-img-btn" title="Upload image" data-role="ca-img">🖼</button>
-        <button class="builder-img-btn" title="Pick from library" data-role="ca-lib">📚</button>
+        <button class="builder-img-btn" title="Upload image" data-role="ca-img">${ICON_IMG_UPLOAD}</button>
+        <button class="builder-img-btn" title="Pick from library" data-role="ca-lib">${ICON_IMG_LIBRARY}</button>
       </div>
       ${caHasImg ? `<img src="${esc(ca.src || '')}" class="builder-img-preview" data-role="ca-img-preview"><button class="builder-img-clear" data-clear-for="ca">\u2715 Remove</button>` : ''}
       ${caLibName ? `<span class="local-img-tag ca-lib-tag">📚 ${esc(caLibName)}</span>` : ''}
@@ -3187,6 +3247,25 @@ Views.reports = {
 };
 
 // ============================================================
+// VIEW: SETTINGS
+// ============================================================
+Views.settings = {
+  onEnter() { Views.settings.render(); },
+
+  render() {
+    const prefs = Settings.load();
+    ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
+     'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle', 'flipSpeed'].forEach(key => {
+      const ctrl = document.getElementById('setting-' + key);
+      if (!ctrl) return;
+      ctrl.querySelectorAll('.seg-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === String(prefs[key]));
+      });
+    });
+  },
+};
+
+// ============================================================
 // EVENT WIRING
 // ============================================================
 function wireEvents() {
@@ -3508,6 +3587,28 @@ function wireEvents() {
       Toast.show('History cleared', 'info');
     }, 'Clear All', 'btn-danger');
   });
+
+  // ── Settings view ──
+  ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
+   'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle', 'flipSpeed'].forEach(key => {
+    const ctrl = document.getElementById('setting-' + key);
+    if (!ctrl) return;
+    ctrl.addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn');
+      if (!btn) return;
+      const prefs = Settings.load();
+      prefs[key] = btn.dataset.value;
+      Settings.save(prefs);
+      Settings.apply(prefs);
+      Views.settings.render();
+    });
+  });
+  document.getElementById('btn-settings-reset').addEventListener('click', () => {
+    Settings.save({ ...Settings.DEFAULTS });
+    Settings.apply();
+    Views.settings.render();
+    Toast.show('Settings reset to defaults', 'info');
+  });
 }
 
 // ============================================================
@@ -3520,7 +3621,7 @@ async function init() {
     console.warn('IndexedDB unavailable, falling back to localStorage for datasets:', e);
   }
 
-  // restore current user
+  Settings.apply();
   const savedUser = Storage.getCurrentUser();
   if (savedUser) {
     // verify still in user list
