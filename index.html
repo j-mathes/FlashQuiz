@@ -154,8 +154,6 @@
           <div class="builder-header-btns">
             <button id="btn-builder-add-q" class="btn btn-primary">+ Add Question</button>
             <button id="btn-builder-levels" class="btn btn-ghost" title="Define levels (e.g. Easy / Medium / Hard) and assign colours — each question can then be tagged with a level">🏷 Levels</button>
-            <button id="btn-builder-missing-imgs" class="btn btn-ghost" title="Filter to questions where any field has a broken image reference — a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter.">🖼 Missing Images</button>
-            <button id="btn-builder-missing-levels" class="btn btn-ghost" title="Filter to questions that have no level assigned, or whose assigned level no longer exists in the deck's defined levels. Click again to clear the filter.">🏷 Missing Levels</button>
             <button id="btn-builder-export" class="btn btn-secondary" title="Export this deck as CSV or Excel">⬇ Export</button>
             <button id="btn-builder-save-copy" class="btn btn-secondary" title="Save a new separate deck named 'Copy of …' — does not affect the original">📋 Save as Copy</button>
             <button id="btn-builder-save" class="btn btn-success" title="Overwrite this deck in place — renaming it here changes its name, no new deck is created">💾 Save Deck</button>
@@ -230,6 +228,12 @@
             </div>
           </div>
         </details>
+        <div class="builder-search-row">
+          <input type="search" id="builder-search-input" class="builder-search-input" placeholder="🔍 Search questions…" autocomplete="off">
+          <span id="builder-search-count" class="builder-search-count"></span>
+          <button id="btn-builder-missing-imgs" class="btn btn-ghost btn-sm" title="Filter to questions where any field has a broken image reference — a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter.">🖼 Missing Images</button>
+          <button id="btn-builder-missing-levels" class="btn btn-ghost btn-sm" title="Filter to questions that have no level assigned, or whose assigned level no longer exists in the deck's defined levels. Click again to clear the filter.">🏷 Missing Levels</button>
+        </div>
         <div id="builder-bulk-bar" class="builder-bulk-bar hidden">
           <span id="bulk-count" class="bulk-count"></span>
           <div class="level-picker">

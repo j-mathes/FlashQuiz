@@ -439,6 +439,33 @@ select { cursor: pointer; }
 }
 .builder-header-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
 
+.builder-search-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .75rem;
+}
+.builder-search-input {
+  flex: 1 1 200px;
+  max-width: 360px;
+  padding: .4rem .75rem;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  font-size: .95rem;
+}
+.builder-search-input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--clr-primary) 20%, transparent);
+}
+.builder-search-count {
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
 .builder-questions-list { display: flex; flex-direction: column; gap: 1rem; }
 
 .builder-q-card {

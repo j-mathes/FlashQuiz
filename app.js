@@ -518,7 +518,7 @@ const State = {
     startedAt: null,
   },
   // builder
-  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, filterMissingLevels: false, selectedIds: new Set(), lastCheckedId: null }
+  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, filterMissingLevels: false, searchText: '', selectedIds: new Set(), lastCheckedId: null }
 };
 // levels are stored on State.fc.levels / State.qz.levels when a deck is loaded
 
@@ -1564,6 +1564,11 @@ Views.builder = {
     State.bld.filterMissingImgs   = false;
     State.bld.missingImgIds       = null;
     State.bld.filterMissingLevels = false;
+    State.bld.searchText          = '';
+    const searchInput = document.getElementById('builder-search-input');
+    if (searchInput) searchInput.value = '';
+    const searchCount = document.getElementById('builder-search-count');
+    if (searchCount) searchCount.textContent = '';
 
     document.getElementById('deck-name-input').value  = ds.name;
     const missingBtn = document.getElementById('btn-builder-missing-imgs');
@@ -1602,13 +1607,32 @@ Views.builder = {
     if (State.bld.filterMissingLevels) {
       filtered = filtered.filter(({ row }) => !row.level || !levelNames.has(row.level));
     }
+    const needle = State.bld.searchText.trim().toLowerCase();
+    if (needle) {
+      filtered = filtered.filter(({ row }) => {
+        const getText = cell => (cell && (cell.type === 'text' || cell.type === 'mixed') ? (cell.text || '') : '');
+        const haystack = [
+          getText(row.question),
+          getText(row.correctAnswer),
+          ...(row.wrongAnswers || []).map(getText),
+        ].join('\n').toLowerCase();
+        return haystack.includes(needle);
+      });
+    }
+
+    const countEl = document.getElementById('builder-search-count');
+    if (countEl) {
+      countEl.textContent = needle ? `${filtered.length} of ${rows.length}` : '';
+    }
 
     if (!filtered.length) {
-      const reason = State.bld.filterMissingImgs && State.bld.filterMissingLevels
-        ? 'No questions match both filters.'
-        : State.bld.filterMissingImgs
-          ? 'No questions match \u2014 every question has an image. \ud83c\udf89'
-          : 'No questions match \u2014 every question has a level assigned. \ud83c\udf89';
+      const reason = needle
+        ? `No questions match "${esc(needle)}".`
+        : State.bld.filterMissingImgs && State.bld.filterMissingLevels
+          ? 'No questions match both filters.'
+          : State.bld.filterMissingImgs
+            ? 'No questions match \u2014 every question has an image. \ud83c\udf89'
+            : 'No questions match \u2014 every question has a level assigned. \ud83c\udf89';
       container.innerHTML = `<div class="empty-state"><p>${reason}</p></div>`;
       Views.builder.updateBulkBar();
       return;
@@ -3314,6 +3338,10 @@ function wireEvents() {
 
     btn.disabled    = false;
     btn.textContent = '🖼 Missing Images';
+    Views.builder.renderQuestions();
+  });
+  document.getElementById('builder-search-input').addEventListener('input', e => {
+    State.bld.searchText = e.target.value;
     Views.builder.renderQuestions();
   });
   document.getElementById('btn-builder-missing-levels').addEventListener('click', e => {
