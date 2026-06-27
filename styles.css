@@ -1478,9 +1478,9 @@ button.level-badge {
     display: flex;
     flex-direction: column;
   }
-  .quiz-question-card { order: 0; }
-  .quiz-feedback      { order: 1; }
-  .quiz-choices       { order: 2; }
+  .quiz-question-card { order: 0; margin-bottom: .6rem; }
+  .quiz-choices       { order: 1; }
+  .quiz-feedback      { order: 2; margin-top: .6rem; }
   .quiz-top-bar {
     order: 3;
     margin-bottom: 0;
