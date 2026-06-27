@@ -1840,12 +1840,15 @@ Views.builder = {
       });
 
       card.querySelector(`[data-role="${prefix}-img"]`).addEventListener('click', () =>
-        Views.builder.pickImage(uri => {
+        Views.builder.pickImage((uri, name) => {
           const cur = getF(), t = textEl.value;
-          setF(t ? { type:'mixed', text:t, src:uri, imgPosition:(cur&&cur.imgPosition)||'before' }
-                 : { type:'image', src:uri });
-          setImgPreview(`${prefix}-img-preview`, uri, fieldRow());
-          const tag = card.querySelector(`.${prefix}-lib-tag`); if (tag) tag.remove();
+          setF(t ? { type:'mixed', text:t, src:uri, fromLibrary:name, imgPosition:(cur&&cur.imgPosition)||'before' }
+                 : { type:'image', src:uri, fromLibrary:name });
+          const p = setImgPreview(`${prefix}-img-preview`, uri, fieldRow());
+          const oldTag = card.querySelector(`.${prefix}-lib-tag`); if (oldTag) oldTag.remove();
+          const tag = document.createElement('span');
+          tag.className = `local-img-tag ${prefix}-lib-tag`; tag.textContent = `📚 ${name}`;
+          p.after(tag);
           upPos(getF());
         })
       );
@@ -1941,12 +1944,15 @@ Views.builder = {
     card.querySelectorAll('[data-role="wrong-img"]').forEach(btn => {
       btn.addEventListener('click', () => {
         const wi = parseInt(btn.dataset.wi, 10);
-        Views.builder.pickImage(uri => {
+        Views.builder.pickImage((uri, name) => {
           const section = card.querySelector(`.wrong-answer-row[data-wi="${wi}"]`);
           const t = section.querySelector('.wrong-text').value, cur = row.wrongAnswers[wi];
-          row.wrongAnswers[wi] = t ? { type:'mixed', text:t, src:uri, imgPosition:(cur&&cur.imgPosition)||'before' }
-                                   : { type:'image', src:uri };
-          setImgPreview(`wrong-img-preview-${wi}`, uri, btn);
+          row.wrongAnswers[wi] = t ? { type:'mixed', text:t, src:uri, fromLibrary:name, imgPosition:(cur&&cur.imgPosition)||'before' }
+                                   : { type:'image', src:uri, fromLibrary:name };
+          const p = setImgPreview(`wrong-img-preview-${wi}`, uri, btn);
+          let tag = section.querySelector('.wrong-lib-tag');
+          if (!tag) { tag = document.createElement('span'); tag.className = 'local-img-tag wrong-lib-tag'; p.after(tag); }
+          tag.textContent = `📚 ${name}`;
           updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
         });
       });
@@ -2098,7 +2104,10 @@ Views.builder = {
         Toast.show('Image must be under 2 MB', 'warning'); return;
       }
       const uri = await fileToDataURI(file);
-      onPick(uri);
+      const name = file.name;
+      const group = State.bld.draft ? State.bld.draft.name : '';
+      await Storage.saveImage(name, uri, group);
+      onPick(uri, name);
     };
     input.click();
   },
@@ -2150,6 +2159,34 @@ Views.builder = {
       const cOk = c.type === 'image' ? c.src : c.type === 'local-image' ? c.name : c.text;
       return qOk && cOk;
     });
+
+    // migrate any inline data-URI images (no fromLibrary) to the image library
+    try {
+      const extFromDataURI = src => {
+        const m = src.match(/^data:image\/([a-z0-9+]+);/i);
+        if (!m) return 'png';
+        const t = m[1].toLowerCase();
+        return t === 'jpeg' ? 'jpg' : t === 'svg+xml' ? 'svg' : t;
+      };
+      let imgIdx = 0;
+      const migrateCell = async cell => {
+        if (!cell) return;
+        if ((cell.type === 'image' || cell.type === 'mixed') &&
+            cell.src && /^data:image\//i.test(cell.src) && !cell.fromLibrary) {
+          const name = `${draft.name}-img-${++imgIdx}.${extFromDataURI(cell.src)}`;
+          await Storage.saveImage(name, cell.src, draft.name);
+          cell.fromLibrary = name;
+        }
+      };
+      for (const row of draft.rows) {
+        await migrateCell(row.question);
+        await migrateCell(row.correctAnswer);
+        for (const w of (row.wrongAnswers || [])) await migrateCell(w);
+      }
+      if (imgIdx) Toast.show(`Saved ${imgIdx} image(s) to library`, 'success');
+    } catch (err) {
+      Toast.show(`Image migration failed: ${err.message}`, 'error');
+    }
 
     await Storage.saveDataset(draft);
     Toast.show(`Deck "${draft.name}" saved (${draft.rows.length} questions)`, 'success');
