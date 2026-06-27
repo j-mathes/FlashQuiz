@@ -480,6 +480,7 @@ select { cursor: pointer; }
   display: flex;
   align-items: center;
   gap: .6rem;
+  margin-top: 1.5rem;
   margin-bottom: .75rem;
 }
 .builder-search-input {

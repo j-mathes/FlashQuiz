@@ -440,10 +440,13 @@ async function exportBundle(ds, filename, bundleFmt = 'csv') {
     };
     const xlsxRows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
-      if (hasLevels) cells.unshift(r.level || '');
+      if (hasLevels) {
+        cells.unshift(r.reference || '');
+        cells.unshift(r.level || '');
+      }
       return cells;
     });
-    if (hasLevels) xlsxRows.unshift(['Level', 'Question', 'Correct Answer']);
+    if (hasLevels) xlsxRows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
     const ws = XLSX.utils.aoa_to_sheet(xlsxRows);
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => { ws[k].s = { alignment: { wrapText: true } }; });
     const wb = XLSX.utils.book_new();
