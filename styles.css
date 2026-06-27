@@ -1477,6 +1477,11 @@ button.level-badge {
     gap: 4px;
     max-height: 80px;
   }
+  .quiz-grid .grid-sq {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
 
   .quiz-choices { grid-template-columns: 1fr; }
   .home-grid    { grid-template-columns: repeat(2, 1fr); }
