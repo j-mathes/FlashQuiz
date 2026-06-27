@@ -156,6 +156,13 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(99,102,241,.18);
 }
 textarea { resize: vertical; min-height: 72px; }
+textarea::placeholder,
+input[type="text"]::placeholder,
+input[type="search"]::placeholder {
+  color: var(--clr-text-muted);
+  font-style: italic;
+  opacity: .75;
+}
 select { cursor: pointer; }
 
 .input-row {
