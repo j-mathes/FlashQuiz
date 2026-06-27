@@ -3383,6 +3383,12 @@ function wireEvents() {
     Views.quiz.startWithDs(p.ds, LevelFilter.readFilter('quiz'));
   });
 
+  // Mutually exclusive quiz options
+  const optShowCorrect = document.getElementById('quiz-opt-show-correct');
+  const optAutoRetry   = document.getElementById('quiz-opt-auto-retry');
+  optShowCorrect.addEventListener('change', () => { if (optShowCorrect.checked) optAutoRetry.checked = false; });
+  optAutoRetry.addEventListener('change',   () => { if (optAutoRetry.checked)   optShowCorrect.checked = false; });
+
   document.getElementById('fc-card').addEventListener('click', () => Views.flashcards.flip());
   document.getElementById('fc-card').addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); Views.flashcards.flip(); }
