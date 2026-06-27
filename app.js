@@ -2755,6 +2755,7 @@ Views.quiz = {
       pool: [], idx: 0,
       results: [], allAttempts: [],
       score: { correct: 0, total: 0 },
+      levelScores: {},
       round: 1, answered: false,
       showCorrect: document.getElementById('quiz-opt-show-correct')?.checked ?? true,
       autoRetry:   document.getElementById('quiz-opt-auto-retry')?.checked  ?? false,
@@ -2770,6 +2771,34 @@ Views.quiz = {
 
     Views.quiz.buildGrid();
     Views.quiz.showQuestion(0);
+  },
+
+  updateScoreDisplay() {
+    const { correct, total } = State.qz.score;
+    const pct = total ? Math.round(correct / total * 100) : 0;
+    document.getElementById('qscore-correct').textContent = correct;
+    document.getElementById('qscore-total').textContent   = total;
+    document.getElementById('qscore-pct').textContent     = total ? ` (${pct}%)` : '';
+
+    const bar    = document.getElementById('quiz-level-scores');
+    const levels = State.qz.levels || [];
+    const ls     = State.qz.levelScores || {};
+    const active = levels
+      .filter(l => ls[l.name] && ls[l.name].total > 0)
+      .map(l => [l.name, ls[l.name]]);
+
+    if (!active.length || !levels.length) {
+      bar.classList.add('hidden');
+      return;
+    }
+    bar.classList.remove('hidden');
+    bar.innerHTML = active.map(([name, s]) => {
+      const lvl  = levels.find(l => l.name === name);
+      const bg   = lvl ? esc(lvl.color) : 'var(--clr-border)';
+      const fg   = lvl ? esc(contrastColor(lvl.color)) : 'var(--clr-text)';
+      const lpct = s.total ? Math.round(s.correct / s.total * 100) : 0;
+      return `<span class="level-score-chip level-badge" style="background:${bg};color:${fg}">${esc(name)}: ${s.correct}/${s.total} (${lpct}%)</span>`;
+    }).join('');
   },
 
   buildGrid() {
@@ -2799,8 +2828,7 @@ Views.quiz = {
     const row = pool[idx];
 
     document.getElementById('quiz-round-badge').textContent = `Round ${State.qz.round}`;
-    document.getElementById('qscore-correct').textContent   = State.qz.score.correct;
-    document.getElementById('qscore-total').textContent     = State.qz.score.total;
+    Views.quiz.updateScoreDisplay();
     document.getElementById('quiz-q-meta').textContent = `Question ${idx + 1} of ${pool.length}`;
     renderLevelBadge(document.getElementById('quiz-level-badge'), row, State.qz.levels);
 
@@ -2870,7 +2898,14 @@ Views.quiz = {
     State.qz.score.total++;
     if (isCorrect) State.qz.score.correct++;
 
-    const idx = State.qz.idx;
+    // per-level tracking
+    const idx     = State.qz.idx;
+    const lvlName = State.qz.pool[idx]?.level || '';
+    if (lvlName) {
+      if (!State.qz.levelScores[lvlName]) State.qz.levelScores[lvlName] = { correct: 0, total: 0 };
+      State.qz.levelScores[lvlName].total++;
+      if (isCorrect) State.qz.levelScores[lvlName].correct++;
+    }
 
     // style buttons
     document.querySelectorAll('.choice-btn').forEach(b => {
@@ -2897,8 +2932,7 @@ Views.quiz = {
     }
 
     // update score display
-    document.getElementById('qscore-correct').textContent = State.qz.score.correct;
-    document.getElementById('qscore-total').textContent   = State.qz.score.total;
+    Views.quiz.updateScoreDisplay();
 
     // update grid
     Views.quiz.updateGridSquare(idx, isCorrect ? 'sq-correct' : 'sq-wrong');
@@ -2969,7 +3003,9 @@ Views.quiz = {
       endedAt:    new Date().toISOString(),
       finalScore: { correct: firstC, total: State.qz.questions.length },
       totalRounds: State.qz.round,
-      attempts:   State.qz.allAttempts,
+      attempts:    State.qz.allAttempts,
+      levels:      State.qz.levels || [],
+      levelScores: State.qz.levelScores || {},
       levelFilterLabel: State.qz.levelFilterLabel || null
     };
     // overwrite any prior save for the same session
@@ -3024,6 +3060,7 @@ Views.quiz = {
       roundComplete:    resumeIdx >= qz.pool.length,
       round:            qz.round,
       score:            qz.score,
+      levelScores:      qz.levelScores || {},
       results:          qz.results,
       allAttempts:      qz.allAttempts,
       showCorrect:      qz.showCorrect,
@@ -3094,6 +3131,7 @@ Views.quiz = {
       idx:         snap.idx,
       round:       snap.round,
       score:       snap.score       || { correct: 0, total: 0 },
+      levelScores: snap.levelScores  || {},
       results:     snap.results     || [],
       allAttempts: snap.allAttempts || [],
       answered:    false,
@@ -3207,7 +3245,10 @@ Views.reports = {
     let html = roundCount > 1 ? `<p class="text-small" style="margin:.3rem 0">${roundCount} rounds taken to complete</p>` : '';
     rounds.forEach(rn => {
       const rAttempts = session.attempts.filter(a => a.round === rn);
-      html += `<div class="report-round-header">Round ${rn}</div>`;
+      const rC   = rAttempts.filter(a => a.correct).length;
+      const rT   = rAttempts.length;
+      const rPct = rT ? Math.round(rC / rT * 100) : 0;
+      html += `<div class="report-round-header">Round ${rn} <span class="report-round-score">${rC}/${rT} (${rPct}%)</span></div>`;
       rAttempts.forEach(a => {
         html += `<div class="report-attempt-item">
           <span class="attempt-icon">${a.correct ? '✅' : '❌'}</span>
@@ -3216,6 +3257,24 @@ Views.reports = {
         </div>`;
       });
     });
+
+    // Per-level breakdown
+    const ls  = session.levelScores || {};
+    const lev = session.levels || [];
+    const activeL = lev
+      .filter(l => ls[l.name] && ls[l.name].total > 0)
+      .map(l => [l.name, ls[l.name]]);
+    if (activeL.length) {
+      html += `<div class="report-level-breakdown">`;
+      activeL.forEach(([name, s]) => {
+        const lvl  = lev.find(l => l.name === name);
+        const bg   = lvl ? esc(lvl.color) : 'var(--clr-border)';
+        const fg   = lvl ? esc(contrastColor(lvl.color)) : 'var(--clr-text)';
+        const lpct = s.total ? Math.round(s.correct / s.total * 100) : 0;
+        html += `<span class="level-badge" style="background:${bg};color:${fg}">${esc(name)}: ${s.correct}/${s.total} (${lpct}%)</span>`;
+      });
+      html += `</div>`;
+    }
     return html;
   },
 

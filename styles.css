@@ -64,6 +64,8 @@ body.theme-dark {
 body.theme-dark .choice-btn.correct { color: #bbf7d0; }
 body.theme-dark .choice-btn.wrong   { color: #fecaca; }
 body.theme-dark .report-score-pill  { color: #bbf7d0; }
+body.theme-dark .quiz-score-chip    { color: #c7d2fe; }
+body.theme-dark .badge-quiz         { color: #c7d2fe; }
 
 /* ── Reset & Base ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -952,6 +954,17 @@ select { cursor: pointer; }
   border-radius: var(--radius-full);
 }
 
+.quiz-level-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: .75rem;
+}
+.level-score-chip {
+  font-size: .78rem;
+  font-weight: 600;
+}
+
 /* Resume saved-progress card */
 .quiz-resume-card {
   display: flex;
@@ -1404,12 +1417,29 @@ button.level-badge {
 }
 .report-item.open .report-detail { display: block; }
 .report-round-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
   font-size: .85rem;
   font-weight: 700;
   color: var(--clr-text-muted);
   text-transform: uppercase;
   letter-spacing: .06em;
   margin: .75rem 0 .3rem;
+}
+.report-round-score {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--clr-primary);
+}
+.report-level-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .85rem;
+  padding-top: .6rem;
+  border-top: 1px solid var(--clr-border);
 }
 .report-attempt-item {
   display: flex;

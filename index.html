@@ -357,11 +357,13 @@
             <div class="quiz-top-bar">
               <button id="btn-quiz-exit" class="btn btn-ghost">← Exit</button>
               <div class="quiz-score-chip">
-                Score: <span id="qscore-correct">0</span>/<span id="qscore-total">0</span>
+                Score: <span id="qscore-correct">0</span>/<span id="qscore-total">0</span><span id="qscore-pct"></span>
               </div>
               <span id="quiz-round-badge" class="round-badge">Round 1</span>
               <button id="btn-quiz-save" class="btn btn-ghost hidden" title="Save progress to resume later">💾 Save</button>
             </div>
+
+            <div id="quiz-level-scores" class="quiz-level-scores hidden"></div>
 
             <div class="quiz-question-card card">
               <div class="question-meta-row">
