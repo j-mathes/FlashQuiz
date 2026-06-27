@@ -18,11 +18,25 @@ A browser-based flashcard and quiz app. No server, no build step, no frameworks 
 
 Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a working example.
 
+### Without levels (legacy / simple format)
+
 | Column | Contents |
 |---|---|
 | A | Question (text or image) |
 | B | Correct answer |
 | C, D, E… | Wrong answers (at least one required for Quiz mode) |
+
+### With levels (recommended format)
+
+| Column | Contents |
+|---|---|
+| A (`Level`) | Level name (e.g. Easy / Medium / Hard) — leave blank to leave unassigned |
+| B (`Reference`) | Optional reference text shown after answering |
+| C (`Question`) | Question text or image |
+| D (`Correct Answer`) | Correct answer |
+| E, F, G… | Wrong answers (at least one required for Quiz mode) |
+
+The first row must be a header row beginning with `Level` for the app to use this format. Decks exported from the builder always use this format. Importing a file without a `Reference` column is handled automatically — all rows are given an empty reference.
 
 ### Images
 
@@ -42,11 +56,15 @@ Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **�
 - Click card or press **Space** to flip; navigate with **Arrow keys** or Prev/Next buttons
 - Shuffled each session; restart anytime with **↺ Restart**
 - **Level filter** — when a deck has levels, choose which to study before starting
+- **Reference text** — if the question has reference text, it appears at the bottom of the card back, below the answer, separated by a subtle divider
 
 ### Quiz Mode
 - Multiple-choice with answers listed vertically; keyboard shortcuts **1–4**, **Enter / →**
+- **Live score chip** shows `Correct / Total (%)` in the top bar, updated after every answer
+- **Per-level score badges** appear below the top bar once you start answering; each badge uses the level's colour and shows `LevelName: correct/total (%)`; badges appear in defined level order and are hidden until a question for that level has been answered
+- **Reference text** — if the question has reference text, it appears in the feedback box after answering (below the correct-answer reveal on a wrong guess), visually distinguished with a left border
 - Score grid shows ⬜ unanswered / 🟩 correct / 🟥 incorrect per question
-- **↺ Retry Incorrect** re-runs only missed questions in a new round; continues until all correct
+- **↺ Retry Incorrect** re-runs only missed questions in a new round; per-level scores accumulate across all rounds
 - **Level filter** — when a deck has levels, choose which to include before starting
 - **Save progress** — signed-in users see a **💾 Save** button in the toolbar; navigating away or using the back arrow prompts to save or discard. Anonymous users are warned progress cannot be saved.
 - **Resume** — returning to Quiz mode with saved progress shows a resume card above the deck list; click **Resume** to pick up where you left off (score grid restored) or **Discard** to start fresh.
@@ -99,7 +117,16 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 2. **Picker shortcuts** — inside each question's level popover, **`all`** and **`untagged`** buttons tag the whole deck or only untagged questions
 3. **Levels manager shortcuts** — same **`All Qs`** / **`Untagged`** buttons on each level row
 
-**Data format** — levels export as a `Level` column before Question in CSV/Excel and are restored on re-import (colours assigned from the default palette, re-customisable in the builder).
+**Data format** — levels export as a `Level` column before `Reference` and `Question` in CSV/Excel and are restored on re-import (colours assigned from the default palette, re-customisable in the builder).
+
+#### Reference text
+Each question has an optional **Reference** field in the builder. It is a plain-text annotation shown in two places:
+- **Flashcard back** — pinned to the bottom of the answer face, below the answer content, separated by a subtle divider
+- **Quiz feedback box** — shown after the player answers (below the ✅/❌ result and, on a wrong guess, below the correct-answer reveal), visually distinguished with a left border
+
+Leave it blank and it is hidden in both modes.
+
+In CSV/Excel, Reference is the second column (column B when levels are present).
 
 #### Saving & exporting
 - **💾 Save Deck** — overwrites the deck in place (rename here updates the name, no copy made)
@@ -149,13 +176,19 @@ Persistent preferences saved in `localStorage` and applied immediately on every 
 | **Answer font family** | System / Serif / Mono |
 | **Answer font weight** | Regular / Bold |
 | **Answer font style** | Normal / Italic |
+| **Feedback font size** | S / M / L / XL |
+| **Feedback font family** | System / Serif / Mono |
+| **Feedback font weight** | Regular / Bold |
+| **Feedback font style** | Normal / Italic |
 | **Flip animation speed** | Fast / Normal / Slow / Off |
 
-Question text settings apply to the flashcard front face and the quiz question card. Answer text settings apply to the flashcard back face and the quiz answer choices. A **↺ Reset to Defaults** button restores all settings at once.
+Question text settings apply to the flashcard front face and the quiz question card. Answer text settings apply to the flashcard back face and the quiz answer choices. Feedback text settings apply to the entire quiz answer feedback box (correct/incorrect message, correct-answer reveal, and reference text). A **↺ Reset to Defaults** button restores all settings at once.
 
 ### Users & Reports
 - Add named profiles to track sessions separately; switch users from the nav
-- Reports show every session with per-round breakdown; filter by user, deck, or mode
+- Reports show every session; filter by user, deck, or mode
+- Each session can be expanded to see a per-round breakdown: round headers show `X/Y (%)` and list every question answered in that round
+- Sessions with level data show a **level score breakdown** at the bottom of the detail (e.g. `Easy: 8/10 (80%)`)
 
 ---
 

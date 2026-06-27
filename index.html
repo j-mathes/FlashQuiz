@@ -297,6 +297,7 @@
               <div class="fc-face fc-back">
                 <div class="fc-label-badge fc-back-badge">Answer</div>
                 <div class="fc-content" id="fc-back-content"></div>
+                <div id="fc-back-reference" class="fc-back-reference hidden"></div>
               </div>
             </div>
           </div>
@@ -378,6 +379,7 @@
             <div id="quiz-feedback" class="quiz-feedback hidden">
               <div id="feedback-msg" class="feedback-msg"></div>
               <div id="feedback-correct-reveal" class="feedback-correct-reveal hidden"></div>
+              <div id="feedback-reference" class="feedback-reference hidden"></div>
               <button id="btn-quiz-next" class="btn btn-primary">Next →</button>
             </div>
           </div>
@@ -538,7 +540,62 @@
         </div>
 
         <div class="card settings-group">
-          <h3 class="settings-group-title">🔄 Flashcard Flip</h3>
+          <h3 class="settings-group-title">� Feedback Text</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font size</div>
+              <div class="setting-desc">Size of all text in the answer feedback box</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-feedbackFontSize">
+                <button class="seg-btn" data-value="sm">S</button>
+                <button class="seg-btn" data-value="md">M</button>
+                <button class="seg-btn" data-value="lg">L</button>
+                <button class="seg-btn" data-value="xl">XL</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font family</div>
+              <div class="setting-desc">Typeface used in the feedback box</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-feedbackFontFamily">
+                <button class="seg-btn" data-value="system">System</button>
+                <button class="seg-btn" data-value="serif">Serif</button>
+                <button class="seg-btn" data-value="mono">Mono</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font weight</div>
+              <div class="setting-desc">Regular or bold</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-feedbackFontWeight">
+                <button class="seg-btn" data-value="normal">Regular</button>
+                <button class="seg-btn" data-value="bold"><strong>Bold</strong></button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font style</div>
+              <div class="setting-desc">Normal or italic</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-feedbackFontStyle">
+                <button class="seg-btn" data-value="normal">Normal</button>
+                <button class="seg-btn" data-value="italic"><em>Italic</em></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">�🔄 Flashcard Flip</h3>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">Animation speed</div>

@@ -43,6 +43,10 @@
   --a-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --a-font-weight: 400;
   --a-font-style:  normal;
+  --f-font-size:   1rem;
+  --f-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --f-font-weight: 400;
+  --f-font-style:  normal;
   --flip-duration: .55s;
 }
 
@@ -861,6 +865,18 @@ select { cursor: pointer; }
   flex-shrink: 0;
 }
 .fc-back-badge { background: rgba(255,255,255,.2); color: #fff; }
+.fc-back-reference {
+  margin-top: auto;
+  padding-top: .6rem;
+  border-top: 1px solid rgba(255,255,255,.2);
+  font-size: .8rem;
+  color: rgba(255,255,255,.75);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  text-align: left;
+  width: 100%;
+  word-break: break-word;
+}
 
 .fc-content {
   font-size: var(--q-font-size);
@@ -1279,18 +1295,33 @@ button.level-badge {
   border-radius: var(--radius-md);
   background: var(--clr-surface);
   border: 1.5px solid var(--clr-border);
+  font-size: var(--f-font-size);
+  font-family: var(--f-font-family);
+  font-weight: var(--f-font-weight);
+  font-style: var(--f-font-style);
 }
 .feedback-msg {
-  font-size: 1rem;
   font-weight: 700;
 }
 .feedback-msg.correct { color: var(--clr-success); }
 .feedback-msg.wrong   { color: var(--clr-error); }
 .feedback-correct-reveal {
-  font-size: .9rem;
   color: var(--clr-text-muted);
 }
 .feedback-correct-reveal strong { color: var(--clr-text); }
+.feedback-reference {
+  color: var(--clr-text-muted);
+  border-left: 3px solid var(--clr-border);
+  padding-left: .75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.builder-optional-tag {
+  font-size: .75rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  font-style: italic;
+}
 
 /* Score grid sidebar */
 .quiz-sidebar {

@@ -546,11 +546,15 @@ const Settings = (() => {
     body.style.setProperty('--q-font-family', fontFamilyMap[prefs.questionFontFamily] || fontFamilyMap.system);
     body.style.setProperty('--q-font-weight', fontWeightMap[prefs.questionFontWeight] || '700');
     body.style.setProperty('--q-font-style',  fontStyleMap[prefs.questionFontStyle]   || 'normal');
-    body.style.setProperty('--a-font-size',   fontSizeMap[prefs.answerFontSize]       || fontSizeMap.md);
-    body.style.setProperty('--a-font-family', fontFamilyMap[prefs.answerFontFamily]   || fontFamilyMap.system);
-    body.style.setProperty('--a-font-weight', fontWeightMap[prefs.answerFontWeight]   || '400');
-    body.style.setProperty('--a-font-style',  fontStyleMap[prefs.answerFontStyle]     || 'normal');
-    body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed]        || flipDurationMap.normal);
+    body.style.setProperty('--a-font-size',   fontSizeMap[prefs.answerFontSize]         || fontSizeMap.md);
+    body.style.setProperty('--a-font-family', fontFamilyMap[prefs.answerFontFamily]     || fontFamilyMap.system);
+    body.style.setProperty('--a-font-weight', fontWeightMap[prefs.answerFontWeight]     || '400');
+    body.style.setProperty('--a-font-style',  fontStyleMap[prefs.answerFontStyle]       || 'normal');
+    body.style.setProperty('--f-font-size',   fontSizeMap[prefs.feedbackFontSize]       || fontSizeMap.md);
+    body.style.setProperty('--f-font-family', fontFamilyMap[prefs.feedbackFontFamily]   || fontFamilyMap.system);
+    body.style.setProperty('--f-font-weight', fontWeightMap[prefs.feedbackFontWeight]   || '400');
+    body.style.setProperty('--f-font-style',  fontStyleMap[prefs.feedbackFontStyle]     || 'normal');
+    body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed]          || flipDurationMap.normal);
   }
 
   return { DEFAULTS, load, save, apply };
@@ -719,18 +723,24 @@ const FileParser = {
     const firstNonEmpty = rawRows.findIndex(r => r && r.length > 0);
     let hasLevelCol = false;
     let dataStart   = 0;
+    let refColIdx   = -1;
     if (firstNonEmpty >= 0) {
       const firstRow = rawRows[firstNonEmpty];
       if (String(firstRow[0] || '').trim().toLowerCase() === 'level') {
         hasLevelCol = true;
         dataStart   = firstNonEmpty + 1;
+        // Scan for optional 'reference' column in header
+        const headers = firstRow.map(h => String(h || '').trim().toLowerCase());
+        refColIdx = headers.findIndex(h => h === 'reference' || h === 'ref');
       }
     }
 
     for (let ri = dataStart; ri < rawRows.length; ri++) {
       const raw = rawRows[ri];
       if (!raw || raw.length === 0) continue;
-      const off  = hasLevelCol ? 1 : 0;
+      let off  = hasLevelCol ? 1 : 0;
+      // If the reference column falls immediately before the question slot, shift past it
+      if (refColIdx >= 0 && refColIdx === off) off++;
       const levelName = hasLevelCol ? String(raw[0] || '').trim() : '';
       const q = parseCell(raw[off]);
       if (!q) continue;
@@ -741,10 +751,11 @@ const FileParser = {
         const c = parseCell(raw[i]);
         if (c) wrong.push(c);
       }
+      const reference = refColIdx >= 0 ? String(raw[refColIdx] || '').trim() : '';
       if (levelName && !levelMap.has(levelName)) {
         levelMap.set(levelName, LEVEL_COLORS[levelMap.size % LEVEL_COLORS.length]);
       }
-      rows.push({ id: genId(), level: levelName, question: q, correctAnswer: correct, wrongAnswers: wrong });
+      rows.push({ id: genId(), level: levelName, question: q, correctAnswer: correct, wrongAnswers: wrong, reference });
     }
 
     const levels = Array.from(levelMap.entries()).map(([name, color]) => ({ name, color }));
@@ -791,17 +802,17 @@ const FileParser = {
 const DataExport = {
   _sampleRows() {
     return [
-      ['Level', 'Question', 'Correct Answer', 'Wrong 1', 'Wrong 2', 'Wrong 3'],
-      ['Easy',   'What is the capital of France?', 'Paris', 'London', 'Berlin', 'Madrid'],
-      ['Easy',   'Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
-      ['Medium', 'What is 7 × 8?', '56', '48', '54', '64'],
-      ['Medium', 'Who wrote "Romeo and Juliet"?', 'William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain'],
-      ['Medium', 'What is the chemical symbol for water?', 'H2O', 'CO2', 'O2', 'H2SO4'],
-      ['Hard',   'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Eiffel_Tower_20051010.jpg/320px-Eiffel_Tower_20051010.jpg',
+      ['Level', 'Reference', 'Question', 'Correct Answer', 'Wrong 1', 'Wrong 2', 'Wrong 3'],
+      ['Easy',   'France is a country in Western Europe; Paris has been its capital since 987 AD.', 'What is the capital of France?', 'Paris', 'London', 'Berlin', 'Madrid'],
+      ['Easy',   '', 'Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
+      ['Medium', '', 'What is 7 × 8?', '56', '48', '54', '64'],
+      ['Medium', 'Written circa 1594–1596; one of Shakespeare\'s most famous tragedies.', 'Who wrote "Romeo and Juliet"?', 'William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain'],
+      ['Medium', 'H₂O = 2 hydrogen atoms bonded to 1 oxygen atom.', 'What is the chemical symbol for water?', 'H2O', 'CO2', 'O2', 'H2SO4'],
+      ['Hard',   '', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Eiffel_Tower_20051010.jpg/320px-Eiffel_Tower_20051010.jpg',
         'Eiffel Tower', 'Big Ben', 'Statue of Liberty', 'Colosseum'],
-      ['Hard',   'Which element has the atomic number 1?', 'Hydrogen', 'Helium', 'Lithium', 'Carbon'],
-      ['',       'How many sides does a hexagon have?', '6', '5', '7', '8'],
-      ['',       'What is the largest ocean on Earth?', 'Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'],
+      ['Hard',   '', 'Which element has the atomic number 1?', 'Hydrogen', 'Helium', 'Lithium', 'Carbon'],
+      ['',       '', 'How many sides does a hexagon have?', '6', '5', '7', '8'],
+      ['',       '', 'What is the largest ocean on Earth?', 'Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'],
     ];
   },
 
@@ -851,10 +862,13 @@ const DataExport = {
     };
     const rows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
-      if (hasLevels) cells.unshift(r.level || '');
+      if (hasLevels) {
+        cells.unshift(r.reference || ''); // reference before question
+        cells.unshift(r.level || '');     // level before reference
+      }
       return cells;
     });
-    if (hasLevels) rows.unshift(['Level', 'Question', 'Correct Answer']);
+    if (hasLevels) rows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
     return DataExport._toCSV(rows);
   },
 
@@ -873,10 +887,13 @@ const DataExport = {
     };
     const rows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
-      if (hasLevels) cells.unshift(r.level || '');
+      if (hasLevels) {
+        cells.unshift(r.reference || ''); // reference before question
+        cells.unshift(r.level || '');     // level before reference
+      }
       return cells;
     });
-    if (hasLevels) rows.unshift(['Level', 'Question', 'Correct Answer']);
+    if (hasLevels) rows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
     const ws = XLSX.utils.aoa_to_sheet(rows);
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => {
       ws[k].s = { alignment: { wrapText: true } };
@@ -1767,6 +1784,7 @@ Views.builder = {
       levelPickerHtml = `<div class="level-picker" data-role="level-picker">${btnHtml}<div class="level-picker-pop">${opts}</div></div>`;
     }
 
+    const refText  = esc(row.reference || '');
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
       const wh = w.type === 'image' || w.type === 'mixed' || w.type === 'local-image';
@@ -1833,6 +1851,11 @@ Views.builder = {
         <div class="builder-field-label" style="margin-top:.6rem">Wrong Answers</div>
         ${wrongHtml}
         <button class="btn btn-ghost mt-1" data-role="add-wrong">+ Add Wrong Answer</button>
+      </div>
+
+      <div class="builder-reference-section">
+        <div class="builder-field-label" style="margin-top:.6rem">Reference <span class="builder-optional-tag">(optional)</span></div>
+        <textarea class="ref-text" rows="2" placeholder="Reference text shown after answering…">${refText}</textarea>
       </div>`;
 
     Views.builder.wireCard(card, row, idx);
@@ -2228,7 +2251,8 @@ Views.builder = {
       level:         '',
       question:      { type: 'text', text: '' },
       correctAnswer: { type: 'text', text: '' },
-      wrongAnswers:  [{ type: 'text', text: '' }]
+      wrongAnswers:  [{ type: 'text', text: '' }],
+      reference:     ''
     });
     Views.builder.renderQuestions();
     // scroll to bottom
@@ -2260,6 +2284,8 @@ Views.builder = {
           if (row.wrongAnswers[wi].type === 'mixed') row.wrongAnswers[wi] = { ...row.wrongAnswers[wi], text: t };
         }
       });
+      const refTextEl = card.querySelector('.ref-text');
+      if (refTextEl) row.reference = refTextEl.value.trim();
     });
 
     // filter empty rows
@@ -2608,6 +2634,15 @@ Views.flashcards = {
     renderCell(row.question,      document.getElementById('fc-front-content'));
     renderCell(row.correctAnswer, document.getElementById('fc-back-content'));
 
+    const fcRefEl   = document.getElementById('fc-back-reference');
+    const fcRefText = (row.reference || '').trim();
+    if (fcRefText) {
+      fcRefEl.textContent = fcRefText;
+      fcRefEl.classList.remove('hidden');
+    } else {
+      fcRefEl.classList.add('hidden');
+    }
+
     document.getElementById('fc-progress').textContent = `${idx + 1} / ${qs.length}`;
     renderLevelBadge(document.getElementById('fc-level-badge'), row, State.fc.levels);
 
@@ -2929,6 +2964,16 @@ Views.quiz = {
       label.innerHTML = '<strong>Correct answer: </strong>';
       revealEl.appendChild(label);
       renderCell(row.correctAnswer, revealEl);
+    }
+
+    // reference text (optional)
+    const refEl   = document.getElementById('feedback-reference');
+    const refText = (row.reference || '').trim();
+    if (refText) {
+      refEl.textContent = refText;
+      refEl.classList.remove('hidden');
+    } else {
+      refEl.classList.add('hidden');
     }
 
     // update score display
@@ -3314,7 +3359,9 @@ Views.settings = {
   render() {
     const prefs = Settings.load();
     ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
-     'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle', 'flipSpeed'].forEach(key => {
+     'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle',
+     'feedbackFontSize', 'feedbackFontFamily', 'feedbackFontWeight', 'feedbackFontStyle',
+     'flipSpeed'].forEach(key => {
       const ctrl = document.getElementById('setting-' + key);
       if (!ctrl) return;
       ctrl.querySelectorAll('.seg-btn').forEach(btn => {
@@ -3649,7 +3696,9 @@ function wireEvents() {
 
   // ── Settings view ──
   ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
-   'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle', 'flipSpeed'].forEach(key => {
+   'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle',
+   'feedbackFontSize', 'feedbackFontFamily', 'feedbackFontWeight', 'feedbackFontStyle',
+   'flipSpeed'].forEach(key => {
     const ctrl = document.getElementById('setting-' + key);
     if (!ctrl) return;
     ctrl.addEventListener('click', e => {
