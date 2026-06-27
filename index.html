@@ -93,6 +93,16 @@
         <button id="btn-anon" class="btn btn-ghost mt-1">Continue as Anonymous</button>
       </div>
       <div id="users-list" class="users-list"></div>
+
+      <div class="card users-form-card users-backup-card">
+        <h3>Data Backup</h3>
+        <p style="font-size:.88rem;color:var(--clr-text-muted);margin-bottom:.75rem">Export or restore all user profiles, session history, and app settings.</p>
+        <div class="input-row">
+          <button id="btn-export-backup" class="btn btn-secondary">⬇ Export All</button>
+          <button id="btn-import-backup" class="btn btn-ghost">⬆ Import Backup</button>
+        </div>
+        <input type="file" id="backup-file-input" accept=".json" style="display:none">
+      </div>
     </section>
 
     <!-- ── DATA ───────────────────────────────────────────── -->

@@ -190,6 +190,13 @@ Question text settings apply to the flashcard front face and the quiz question c
 - Each session can be expanded to see a per-round breakdown: round headers show `X/Y (%)` and list every question answered in that round
 - Sessions with level data show a **level score breakdown** at the bottom of the detail (e.g. `Easy: 8/10 (80%)`)
 
+### Data Backup
+Located at the bottom of the **User Profiles** page.
+
+- **⬇ Export** (per user row) — downloads a JSON backup of that user's profile and all their sessions; filename includes the user's name and date
+- **⬇ Export All** (backup card) — downloads a JSON backup of every user, all sessions, and current app settings
+- **⬆ Import Backup** — accepts any FlashQuiz backup file (single-user or all-users); a confirmation modal shows how many users and sessions are in the file and how many are new before merging. Records already present (matched by ID) are skipped — nothing is deleted.
+
 ---
 
 ## Storage

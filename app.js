@@ -915,7 +915,111 @@ const DataExport = {
 };
 
 // ============================================================
-// RESOLVE LOCAL IMAGES
+// BACKUP
+// ============================================================
+const Backup = {
+  export() {
+    const backup = {
+      version:    1,
+      exportedAt: new Date().toISOString(),
+      users:      Storage.getUsers(),
+      sessions:   Storage.getSessions(),
+      settings:   Settings.load()
+    };
+    Backup._download(backup, `flashquiz-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    Toast.show('Backup downloaded', 'success');
+  },
+
+  exportUser(user) {
+    const sessions = Storage.getSessions().filter(s => s.userId === user.id);
+    const backup = {
+      version:    1,
+      exportedAt: new Date().toISOString(),
+      users:      [user],
+      sessions,
+      settings:   null
+    };
+    const safeName = user.name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    Backup._download(backup, `flashquiz-backup-${safeName}-${new Date().toISOString().slice(0, 10)}.json`);
+    Toast.show(`Backup for ${user.name} downloaded`, 'success');
+  },
+
+  _download(backup, filename) {
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
+  async import(file) {
+    let backup;
+    try {
+      backup = JSON.parse(await file.text());
+    } catch {
+      Toast.show('Could not read file — not valid JSON', 'error');
+      return;
+    }
+    if (backup.version !== 1 || !Array.isArray(backup.users) || !Array.isArray(backup.sessions)) {
+      Toast.show('File does not appear to be a FlashQuiz backup', 'error');
+      return;
+    }
+
+    const existingUsers    = Storage.getUsers();
+    const existingSessions = Storage.getSessions();
+    const newUserCount     = backup.users.filter(u => !existingUsers.some(e => e.id === u.id)).length;
+    const newSessCount     = backup.sessions.filter(s => !existingSessions.some(e => e.id === s.id)).length;
+
+    const lines = [
+      `<strong>${backup.users.length}</strong> user(s) in backup — <strong>${newUserCount}</strong> new`,
+      `<strong>${backup.sessions.length}</strong> session(s) in backup — <strong>${newSessCount}</strong> new`,
+      backup.settings ? 'App settings will also be restored.' : null
+    ].filter(Boolean).join('<br>');
+
+    const bodyEl = document.createElement('div');
+    bodyEl.style.fontSize = '.95rem';
+    bodyEl.style.lineHeight = '1.8';
+    bodyEl.innerHTML = lines + '<p style="margin-top:.6rem;font-size:.85rem;color:var(--clr-text-muted)">Records already present (same ID) are skipped — nothing is deleted.</p>';
+
+    Modal.show({
+      title: 'Import Backup',
+      body:  bodyEl,
+      buttons: [
+        { label: 'Cancel' },
+        { label: 'Import & Merge', cls: 'btn-primary', action: () => Backup._merge(backup) }
+      ]
+    });
+  },
+
+  _merge(backup) {
+    // Users
+    const existingUsers = Storage.getUsers();
+    const existingUserIds = new Set(existingUsers.map(u => u.id));
+    const mergedUsers = [...existingUsers, ...backup.users.filter(u => !existingUserIds.has(u.id))];
+    Storage.saveUsers(mergedUsers);
+
+    // Sessions
+    const existingSessions = Storage.getSessions();
+    const existingSessIds  = new Set(existingSessions.map(s => s.id));
+    const mergedSessions   = [...existingSessions, ...backup.sessions.filter(s => !existingSessIds.has(s.id))];
+    Storage.lsSet('sessions', mergedSessions);
+
+    // Settings
+    if (backup.settings) {
+      Settings.save(backup.settings);
+      Settings.apply(backup.settings);
+    }
+
+    const addedU = mergedUsers.length    - existingUsers.length;
+    const addedS = mergedSessions.length - existingSessions.length;
+
+    Views.users.render();
+    Views.users.updateNavUser();
+    Toast.show(`Imported: ${addedU} user(s), ${addedS} session(s)`, 'success', 4000);
+  }
+};
 // ============================================================
 async function resolveCellImg(cell) {
   if (!cell) return cell;
@@ -1146,6 +1250,7 @@ Views.users = {
         <span class="user-meta">Added ${fmtDate(u.createdAt)}</span>
         ${isActive ? '<span class="round-badge">Active</span>' : ''}
         <button class="btn btn-secondary" data-action="select" data-id="${u.id}">Select</button>
+        <button class="btn btn-ghost"      data-action="export" data-id="${u.id}">⬇ Export</button>
         <button class="btn btn-danger"    data-action="delete" data-id="${u.id}">Delete</button>`;
       list.appendChild(div);
     });
@@ -1162,6 +1267,8 @@ Views.users = {
           Views.users.updateNavUser();
           Toast.show(`Switched to ${user.name}`, 'success');
           Views.users.render();
+        } else if (action === 'export') {
+          Backup.exportUser(user);
         } else if (action === 'delete') {
           Modal.confirm('Delete User', `Delete "${user.name}"? Their session history will remain.`, () => {
             const updated = Storage.getUsers().filter(u => u.id !== id);
@@ -3431,6 +3538,16 @@ function wireEvents() {
     Toast.show('Continuing as Anonymous', 'info');
     Views.users.render();
     Router.navigate('home');
+  });
+
+  document.getElementById('btn-export-backup').addEventListener('click', () => Backup.export());
+  document.getElementById('btn-import-backup').addEventListener('click', () => {
+    document.getElementById('backup-file-input').click();
+  });
+  document.getElementById('backup-file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) Backup.import(file);
+    e.target.value = '';
   });
 
   // ── Data view ──

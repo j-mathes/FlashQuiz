@@ -388,6 +388,7 @@ select { cursor: pointer; }
 
 /* ── USERS ─────────────────────────────────────────────────── */
 .users-form-card { margin-bottom: 1.25rem; }
+.users-backup-card { margin-top: 2rem; }
 .users-list { display: flex; flex-direction: column; gap: .6rem; }
 .user-item {
   display: flex;
