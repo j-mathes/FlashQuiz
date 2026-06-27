@@ -1423,7 +1423,7 @@ Views.data = {
       // Extract every content path listed in the manifest
       const listedPaths = new Set();
       for (const line of mText.split(/\r?\n/)) {
-        const m = line.match(/^\s+(images\/\S+|\S+\.(csv|xlsx|xls))\s*$/i);
+        const m = line.match(/^\s+(images\/.+|.+\.(csv|xlsx|xls))\s*$/i);
         if (!m) continue;
         listedPaths.add(m[1].trim());
       }
