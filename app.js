@@ -1662,10 +1662,13 @@ Views.builder = {
     const ca = row.correctAnswer || { type: 'text', text: '' };
     const qText  = (q.type  === 'text' || q.type  === 'mixed') ? esc(q.text  || '') : '';
     const caText = (ca.type === 'text' || ca.type === 'mixed') ? esc(ca.text || '') : '';
-    const qHasImg  = q.type  === 'image' || q.type  === 'mixed';
-    const caHasImg = ca.type === 'image' || ca.type === 'mixed';
+    const qHasImg  = q.type  === 'image' || q.type  === 'mixed' || q.type  === 'local-image';
+    const caHasImg = ca.type === 'image' || ca.type === 'mixed' || ca.type === 'local-image';
     const qPos  = q.imgPosition  || 'before';
     const caPos = ca.imgPosition || 'before';
+    // lib tag name: for local-image use .name; for mixed/image with library ref use fromLibrary or localImage
+    const qLibName  = q.type  === 'local-image' ? q.name  : (q.fromLibrary  || q.localImage  || null);
+    const caLibName = ca.type === 'local-image' ? ca.name : (ca.fromLibrary || ca.localImage || null);
 
     // Level picker — compact badge button + mini popover (only when deck has levels)
     const levels = State.bld.draft.levels || [];
@@ -1682,14 +1685,16 @@ Views.builder = {
 
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
-      const wh = w.type === 'image' || w.type === 'mixed';
+      const wh = w.type === 'image' || w.type === 'mixed' || w.type === 'local-image';
+      const wLibName = w.type === 'local-image' ? w.name : (w.fromLibrary || w.localImage || null);
       const wp = w.imgPosition || 'before';
       return `
       <div class="wrong-answer-row" data-wi="${wi}">
         <textarea class="wrong-text" rows="2" placeholder="Wrong answer ${wi + 1}\u2026">${wt}</textarea>
         <button class="builder-img-btn" title="Upload image" data-role="wrong-img" data-wi="${wi}">🖼</button>
         <button class="builder-img-btn" title="Pick from library" data-role="wrong-lib" data-wi="${wi}">📚</button>
-        ${wh ? `<img src="${esc(w.src)}" class="builder-img-preview" data-role="wrong-img-preview-${wi}"><button class="builder-img-clear" data-clear-for="wrong" data-wi="${wi}">\u2715 Remove</button>` : ''}
+        ${wh ? `<img src="${esc(w.src || '')}" class="builder-img-preview" data-role="wrong-img-preview-${wi}"><button class="builder-img-clear" data-clear-for="wrong" data-wi="${wi}">\u2715 Remove</button>` : ''}
+        ${wLibName ? `<span class="local-img-tag wrong-lib-tag">📚 ${esc(wLibName)}</span>` : ''}
         <div class="img-pos-row${w.type === 'mixed' ? '' : ' hidden'}" data-role="wrong-pos-row-${wi}">
           <span class="img-pos-label">Image:</span>
           <button class="img-pos-opt${wp === 'before' ? ' active' : ''}" data-role="wrong-pos-before-${wi}">Above</button>
@@ -1716,9 +1721,9 @@ Views.builder = {
         <button class="builder-img-btn" title="Upload image" data-role="q-img">🖼</button>
         <button class="builder-img-btn" title="Pick from library" data-role="q-lib">📚</button>
       </div>
-      ${qHasImg ? `<img src="${esc(q.src)}" class="builder-img-preview" data-role="q-img-preview"><button class="builder-img-clear" data-clear-for="q">\u2715 Remove</button>` : ''}
-      ${q.type === 'local-image' ? `<span class="local-img-tag q-lib-tag">📚 ${esc(q.name)}</span>` : ''}
-      <div class="img-pos-row${q.type === 'mixed' ? '' : ' hidden'}" data-role="q-pos-row">
+      ${qHasImg ? `<img src="${esc(q.src || '')}" class="builder-img-preview" data-role="q-img-preview"><button class="builder-img-clear" data-clear-for="q">\u2715 Remove</button>` : ''}
+      ${qLibName ? `<span class="local-img-tag q-lib-tag">📚 ${esc(qLibName)}</span>` : ''}
+      <div class="img-pos-row${(q.type === 'mixed') ? '' : ' hidden'}" data-role="q-pos-row">
         <span class="img-pos-label">Image:</span>
         <button class="img-pos-opt${qPos === 'before' ? ' active' : ''}" data-role="q-pos-before">Above</button>
         <button class="img-pos-opt${qPos === 'inline' ? ' active' : ''}" data-role="q-pos-inline">Inline</button>
@@ -1731,9 +1736,9 @@ Views.builder = {
         <button class="builder-img-btn" title="Upload image" data-role="ca-img">🖼</button>
         <button class="builder-img-btn" title="Pick from library" data-role="ca-lib">📚</button>
       </div>
-      ${caHasImg ? `<img src="${esc(ca.src)}" class="builder-img-preview" data-role="ca-img-preview"><button class="builder-img-clear" data-clear-for="ca">\u2715 Remove</button>` : ''}
-      ${ca.type === 'local-image' ? `<span class="local-img-tag ca-lib-tag">📚 ${esc(ca.name)}</span>` : ''}
-      <div class="img-pos-row${ca.type === 'mixed' ? '' : ' hidden'}" data-role="ca-pos-row">
+      ${caHasImg ? `<img src="${esc(ca.src || '')}" class="builder-img-preview" data-role="ca-img-preview"><button class="builder-img-clear" data-clear-for="ca">\u2715 Remove</button>` : ''}
+      ${caLibName ? `<span class="local-img-tag ca-lib-tag">📚 ${esc(caLibName)}</span>` : ''}
+      <div class="img-pos-row${(ca.type === 'mixed') ? '' : ' hidden'}" data-role="ca-pos-row">
         <span class="img-pos-label">Image:</span>
         <button class="img-pos-opt${caPos === 'before' ? ' active' : ''}" data-role="ca-pos-before">Above</button>
         <button class="img-pos-opt${caPos === 'inline' ? ' active' : ''}" data-role="ca-pos-inline">Inline</button>
@@ -1747,6 +1752,20 @@ Views.builder = {
       </div>`;
 
     Views.builder.wireCard(card, row, idx);
+
+    // Async-load library images for local-image / mixed+localImage cells
+    const asyncFillPreview = (cell, role) => {
+      const libName = cell.type === 'local-image' ? cell.name : (cell.localImage || null);
+      if (!libName) return;
+      Storage.getImage(libName).then(imgRec => {
+        const img = card.querySelector(`[data-role="${role}"]`);
+        if (img && imgRec) img.src = imgRec.src;
+      });
+    };
+    asyncFillPreview(q,  'q-img-preview');
+    asyncFillPreview(ca, 'ca-img-preview');
+    row.wrongAnswers.forEach((w, wi) => asyncFillPreview(w, `wrong-img-preview-${wi}`));
+
     return card;
   },
 
@@ -1932,11 +1951,18 @@ Views.builder = {
       ta.addEventListener('input', () => {
         const wi = parseInt(ta.closest('[data-wi]').dataset.wi, 10);
         const t = ta.value, cur = row.wrongAnswers[wi];
-        const hasImg = cur && (cur.type === 'image' || cur.type === 'mixed') && cur.src;
-        row.wrongAnswers[wi] = hasImg
-          ? (t ? { type:'mixed', src:cur.src, fromLibrary:cur.fromLibrary, text:t, imgPosition:cur.imgPosition||'before' }
-               : { type:'image', src:cur.src, fromLibrary:cur.fromLibrary })
-          : { type:'text', text:t };
+        const hasSrcImg   = cur && (cur.type === 'image' || cur.type === 'mixed') && cur.src;
+        const hasLocalRef = cur && (cur.type === 'local-image' || (cur.type === 'mixed' && cur.localImage && !cur.src));
+        const localName   = hasLocalRef ? (cur.name || cur.localImage) : null;
+        if (hasSrcImg) {
+          row.wrongAnswers[wi] = t ? { type:'mixed', src:cur.src, fromLibrary:cur.fromLibrary, text:t, imgPosition:cur.imgPosition||'before' }
+                                   : { type:'image', src:cur.src, fromLibrary:cur.fromLibrary };
+        } else if (hasLocalRef) {
+          row.wrongAnswers[wi] = t ? { type:'mixed', localImage:localName, text:t, imgPosition:cur.imgPosition||'before' }
+                                   : { type:'local-image', name:localName };
+        } else {
+          row.wrongAnswers[wi] = { type:'text', text:t };
+        }
         updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
       });
     });
