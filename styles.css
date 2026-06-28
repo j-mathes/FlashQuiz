@@ -1697,6 +1697,20 @@ button.level-badge {
   .home-grid { grid-template-columns: 1fr; }
 }
 
+/* Mobile landscape — unfreeze the builder header, keep search row sticky */
+@media (orientation: landscape) and (max-height: 500px) {
+  .builder-frozen-header { position: static; }
+  .builder-search-row {
+    position: sticky;
+    top: var(--nav-height);
+    z-index: 90;
+    background: var(--clr-bg);
+    margin-top: 0;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+  }
+}
+
 /* ── Image Library ─────────────────────────────────────────────── */
 .section-label-row {
   display: flex;
