@@ -1673,6 +1673,11 @@ button.level-badge {
 
   .settings-grid { max-width: 100%; }
   .setting-row { flex-direction: column; align-items: flex-start; gap: .5rem; }
+
+  .builder-search-row { flex-wrap: wrap; }
+  .builder-search-input { flex: 1 1 100%; max-width: 100%; }
+
+  .deck-name-input { flex: 1 1 100%; }
 }
 
 @media (max-width: 420px) {
