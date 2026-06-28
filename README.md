@@ -197,9 +197,9 @@ Question text settings apply to the flashcard front face and the quiz question c
 ### Data Backup
 Located at the bottom of the **User Profiles** page.
 
-- **⬇ Export** (per user row) — downloads a JSON backup of that user's profile and all their sessions; filename includes the user's name and date
-- **⬇ Export All** (backup card) — downloads a JSON backup of every user, all sessions, and current app settings
-- **⬆ Import Backup** — accepts any FlashQuiz backup file (single-user or all-users); a confirmation modal shows how many users and sessions are in the file and how many are new before merging. Records already present (matched by ID) are skipped — nothing is deleted.
+- **⬇ Export** (per user row) — downloads a JSON backup of that user's profile, all their sessions, and their in-progress quiz snapshot (if one exists); filename includes the user's name and date
+- **⬇ Export All** (backup card) — downloads a JSON backup of every user, all sessions, and current app settings. If any users have a saved in-progress quiz, a prompt asks whether to include those snapshots in the export; if included, a warning notes that the matching deck must already exist on the target device (deck data is not bundled)
+- **⬆ Import Backup** — accepts any FlashQuiz backup file (single-user or all-users); a confirmation modal shows how many users, sessions, and in-progress quiz snapshots are in the file and how many are new before merging. If the file includes quiz progress, a reminder is shown that the matching deck must be present. Records already present (matched by ID) are skipped — nothing is deleted.
 
 ---
 

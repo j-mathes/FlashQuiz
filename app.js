@@ -933,7 +933,43 @@ const DataExport = {
 // BACKUP
 // ============================================================
 const Backup = {
+
+  // Returns all users who have a saved in-progress quiz snapshot.
+  // Pass an array of userIds to restrict, or omit to check all users.
+  _getProgressSnapshots(userIds) {
+    const users = userIds
+      ? Storage.getUsers().filter(u => userIds.includes(u.id))
+      : Storage.getUsers();
+    return users
+      .map(u => ({ key: 'quiz_progress_' + u.id, snap: Storage.lsGet('quiz_progress_' + u.id, null), user: u }))
+      .filter(({ snap }) => snap !== null);
+  },
+
   export() {
+    const snaps = Backup._getProgressSnapshots();
+    if (!snaps.length) { Backup._doExport(false); return; }
+
+    const listHtml = snaps.map(({ snap, user }) =>
+      `<li>${esc(user.name)}: <em>${esc(snap.datasetName || 'Unknown deck')}</em></li>`
+    ).join('');
+    const bodyEl = document.createElement('div');
+    bodyEl.style.fontSize = '.95rem';
+    bodyEl.style.lineHeight = '1.8';
+    bodyEl.innerHTML =
+      `<p><strong>${snaps.length}</strong> in-progress quiz(es) found:</p>` +
+      `<ul style="margin:.4rem 0 .75rem 1.25rem">${listHtml}</ul>` +
+      `<p style="font-size:.85rem;color:var(--clr-warning)">⚠ The matching quiz deck must already exist on the target device — deck data is not included in the export.</p>`;
+    Modal.show({
+      title: 'Include In-Progress Quizzes?',
+      body:  bodyEl,
+      buttons: [
+        { label: 'Skip',    action: () => Backup._doExport(false) },
+        { label: 'Include', cls: 'btn-primary', action: () => Backup._doExport(true) }
+      ]
+    });
+  },
+
+  _doExport(includeProgress) {
     const backup = {
       version:    1,
       exportedAt: new Date().toISOString(),
@@ -941,18 +977,23 @@ const Backup = {
       sessions:   Storage.getSessions(),
       settings:   Settings.load()
     };
+    if (includeProgress) {
+      backup.quizProgress = Backup._getProgressSnapshots().map(({ snap }) => snap);
+    }
     Backup._download(backup, `flashquiz-backup-${new Date().toISOString().slice(0, 10)}.json`);
     Toast.show('Backup downloaded', 'success');
   },
 
   exportUser(user) {
     const sessions = Storage.getSessions().filter(s => s.userId === user.id);
+    const [progEntry] = Backup._getProgressSnapshots([user.id]);
     const backup = {
       version:    1,
       exportedAt: new Date().toISOString(),
       users:      [user],
       sessions,
-      settings:   null
+      settings:   null,
+      ...(progEntry ? { quizProgress: [progEntry.snap] } : {})
     };
     const safeName = user.name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
     Backup._download(backup, `flashquiz-backup-${safeName}-${new Date().toISOString().slice(0, 10)}.json`);
@@ -986,17 +1027,24 @@ const Backup = {
     const existingSessions = Storage.getSessions();
     const newUserCount     = backup.users.filter(u => !existingUsers.some(e => e.id === u.id)).length;
     const newSessCount     = backup.sessions.filter(s => !existingSessions.some(e => e.id === s.id)).length;
+    const progSnaps        = Array.isArray(backup.quizProgress) ? backup.quizProgress : [];
+    const newProgCount     = progSnaps.filter(s => !Storage.lsGet('quiz_progress_' + s.userId, null)).length;
 
     const lines = [
       `<strong>${backup.users.length}</strong> user(s) in backup — <strong>${newUserCount}</strong> new`,
       `<strong>${backup.sessions.length}</strong> session(s) in backup — <strong>${newSessCount}</strong> new`,
+      progSnaps.length ? `<strong>${progSnaps.length}</strong> in-progress quiz(es) — <strong>${newProgCount}</strong> new` : null,
       backup.settings ? 'App settings will also be restored.' : null
     ].filter(Boolean).join('<br>');
 
     const bodyEl = document.createElement('div');
     bodyEl.style.fontSize = '.95rem';
     bodyEl.style.lineHeight = '1.8';
-    bodyEl.innerHTML = lines + '<p style="margin-top:.6rem;font-size:.85rem;color:var(--clr-text-muted)">Records already present (same ID) are skipped — nothing is deleted.</p>';
+    bodyEl.innerHTML = lines;
+    if (progSnaps.length) {
+      bodyEl.innerHTML += '<p style="margin-top:.5rem;font-size:.82rem;color:var(--clr-warning)">⚠ In-progress quizzes will only resume correctly if the matching deck already exists on this device.</p>';
+    }
+    bodyEl.innerHTML += '<p style="margin-top:.6rem;font-size:.85rem;color:var(--clr-text-muted)">Records already present (same ID) are skipped — nothing is deleted.</p>';
 
     Modal.show({
       title: 'Import Backup',
@@ -1027,12 +1075,26 @@ const Backup = {
       Settings.apply(backup.settings);
     }
 
+    // Quiz progress snapshots — skip if a snapshot already exists for that user
+    let addedP = 0;
+    if (Array.isArray(backup.quizProgress)) {
+      backup.quizProgress.forEach(snap => {
+        const key = 'quiz_progress_' + snap.userId;
+        if (!Storage.lsGet(key, null)) {
+          Storage.lsSet(key, snap);
+          addedP++;
+        }
+      });
+    }
+
     const addedU = mergedUsers.length    - existingUsers.length;
     const addedS = mergedSessions.length - existingSessions.length;
 
     Views.users.render();
     Views.users.updateNavUser();
-    Toast.show(`Imported: ${addedU} user(s), ${addedS} session(s)`, 'success', 4000);
+    const parts = [`${addedU} user(s)`, `${addedS} session(s)`];
+    if (addedP) parts.push(`${addedP} quiz progress snapshot(s)`);
+    Toast.show(`Imported: ${parts.join(', ')}`, 'success', 4000);
   }
 };
 // ============================================================
