@@ -1674,7 +1674,17 @@ button.level-badge {
   .settings-grid { max-width: 100%; }
   .setting-row { flex-direction: column; align-items: flex-start; gap: .5rem; }
 
-  .builder-search-row { flex-wrap: wrap; }
+  .builder-frozen-header { position: static; }
+  .builder-search-row {
+    flex-wrap: wrap;
+    position: sticky;
+    top: var(--nav-height);
+    z-index: 90;
+    background: var(--clr-bg);
+    margin-top: 0;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+  }
   .builder-search-input { flex: 1 1 100%; max-width: 100%; }
 
   .deck-name-input { flex: 1 1 100%; }

@@ -62,7 +62,7 @@ The first row must be a header row beginning with `Level` for the app to use thi
 - Multiple-choice with answers listed vertically; keyboard shortcuts **1–4**, **Enter / →**
 - **Live score chip** shows `Correct / Total (%)` in the top bar, updated after every answer
 - **Per-level score badges** appear below the top bar once you start answering; each badge uses the level's colour and shows `LevelName: correct/total (%)`; badges appear in defined level order and are hidden until a question for that level has been answered
-- **Reference text** — if the question has reference text, it appears in the feedback box after answering (below the correct-answer reveal on a wrong guess), visually distinguished with a left border
+- **Reference text** — if the question has reference text, it always appears in the feedback box on a correct answer; on a wrong answer it only appears when **Show correct answer** is enabled — visually distinguished with a left border
 - Score grid shows ⬜ unanswered / 🟩 correct / 🟥 incorrect per question
 - **↺ Retry Incorrect** re-runs only missed questions in a new round; per-level scores accumulate across all rounds
 - **Level filter** — when a deck has levels, choose which to include before starting
@@ -71,10 +71,10 @@ The first row must be a header row beginning with `Level` for the app to use thi
 
 ### Quiz Builder
 
-Build or edit decks in the app. Each field supports text, an image, or both. The toolbar and deck name stay **frozen at the top** as you scroll through questions.
+Build or edit decks in the app. Each field supports text, an image, or both. On desktop the toolbar and deck name stay **frozen at the top** as you scroll through questions. On mobile, the deck name and action buttons scroll away and only the **search bar and filter buttons stay pinned** at the top.
 
 #### Search
-A search bar in the frozen header lets you filter questions in real time by typing any text that appears in the question, correct answer, or wrong answers. A result count (e.g. `3 of 45`) is shown while a search is active. The search works alongside the Missing Images and Missing Levels filters simultaneously.
+A search bar below the toolbar lets you filter questions in real time by typing any text that appears in the question, correct answer, or wrong answers. A result count (e.g. `3 of 45`) is shown while a search is active. The search works alongside the Missing Images and Missing Levels filters simultaneously.
 
 #### Adding an image — three ways
 
@@ -99,10 +99,10 @@ In CSV/Excel, put text and the image tag on separate lines in the same cell — 
 When an image is set, a **✕ Remove** button appears below the preview. Click it to clear the image while keeping any text.
 
 #### Missing Images filter
-Click **🖼 Missing Images** in the search bar to show only questions with a broken image reference (`[LOCAL:name]` not in the library, or an external URL that fails to load). Highlights active while the filter is on; click again to clear.
+Click the **Missing Images** button in the search bar to show only questions with a broken image reference (`[LOCAL:name]` not in the library, or an external URL that fails to load). The button highlights when the filter is active; click again to clear.
 
 #### Missing Levels filter
-Click **🏷 Missing Levels** to show only questions with no level assigned, or whose level no longer exists in the deck (e.g. after a rename or delete). Both filters can be active at the same time.
+Click **🏷 Missing Levels** to show only questions with no level assigned, or whose level no longer exists in the deck (e.g. after a rename or delete). The button highlights when active. Both filters can be active at the same time.
 
 #### 🏷 Levels
 Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard, Chapter 1 / Chapter 2).
@@ -122,7 +122,7 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 #### Reference text
 Each question has an optional **Reference** field in the builder. It is a plain-text annotation shown in two places:
 - **Flashcard back** — pinned to the bottom of the answer face, below the answer content, separated by a subtle divider
-- **Quiz feedback box** — shown after the player answers (below the ✅/❌ result and, on a wrong guess, below the correct-answer reveal), visually distinguished with a left border
+- **Quiz feedback box** — always shown on a correct answer; on a wrong answer, only shown when **Show correct answer** is enabled. Appears below the ✅/❌ verdict and, when visible on a wrong guess, below the correct-answer reveal. Visually distinguished with a left border.
 
 Leave it blank and it is hidden in both modes.
 
@@ -176,13 +176,17 @@ Persistent preferences saved in `localStorage` and applied immediately on every 
 | **Answer font family** | System / Serif / Mono |
 | **Answer font weight** | Regular / Bold |
 | **Answer font style** | Normal / Italic |
-| **Feedback font size** | S / M / L / XL |
-| **Feedback font family** | System / Serif / Mono |
-| **Feedback font weight** | Regular / Bold |
-| **Feedback font style** | Normal / Italic |
+| **Verdict font size** | S / M / L / XL |
+| **Verdict font family** | System / Serif / Mono |
+| **Verdict font weight** | Regular / Bold |
+| **Verdict font style** | Normal / Italic |
+| **Feedback reference font size** | S / M / L / XL |
+| **Feedback reference font family** | System / Serif / Mono |
+| **Feedback reference font weight** | Regular / Bold |
+| **Feedback reference font style** | Normal / Italic |
 | **Flip animation speed** | Fast / Normal / Slow / Off |
 
-Question text settings apply to the flashcard front face and the quiz question card. Answer text settings apply to the flashcard back face and the quiz answer choices. Feedback text settings apply to the entire quiz answer feedback box (correct/incorrect message, correct-answer reveal, and reference text). A **↺ Reset to Defaults** button restores all settings at once.
+Question text settings apply to the flashcard front face and the quiz question card. Answer text settings apply to the flashcard back face and the quiz answer choices. **Verdict** settings control the ✅ Correct! / ❌ Incorrect message. **Feedback reference** settings control the reference text shown below the verdict. A **↺ Reset to Defaults** button restores all settings at once.
 
 ### Users & Reports
 - Add named profiles to track sessions separately; switch users from the nav
