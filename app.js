@@ -205,9 +205,9 @@ function renderCell(cell, container) {
 /** Short text label for a cell (used in reports, feedback) */
 function cellLabel(cell) {
   if (!cell) return '';
-  if (cell.type === 'image') return '🖼 [Image]';
-  if (cell.type === 'local-image') return `🖼 [${cell.name}]`;
-  if (cell.type === 'mixed') return `🖼 ${cell.text}`;
+  if (cell.type === 'image') return '[Image]';
+  if (cell.type === 'local-image') return `[${cell.name}]`;
+  if (cell.type === 'mixed') return `${cell.text}`;
   return cell.text;
 }
 
@@ -518,6 +518,14 @@ const Settings = (() => {
     answerFontFamily:   'system',  // 'system' | 'serif' | 'mono'
     answerFontWeight:   'normal',  // 'normal' | 'bold'
     answerFontStyle:    'normal',  // 'normal' | 'italic'
+    verdictFontSize:   'md',      // 'sm' | 'md' | 'lg' | 'xl'
+    verdictFontFamily: 'system',  // 'system' | 'serif' | 'mono'
+    verdictFontWeight: 'bold',    // 'normal' | 'bold'
+    verdictFontStyle:  'normal',  // 'normal' | 'italic'
+    feedbackFontSize:   'sm',      // 'sm' | 'md' | 'lg' | 'xl'
+    feedbackFontFamily: 'system',  // 'system' | 'serif' | 'mono'
+    feedbackFontWeight: 'normal',  // 'normal' | 'bold'
+    feedbackFontStyle:  'italic',  // 'normal' | 'italic'
     flipSpeed:          'normal',  // 'fast' | 'normal' | 'slow' | 'none'
   };
 
@@ -553,10 +561,14 @@ const Settings = (() => {
     body.style.setProperty('--a-font-family', fontFamilyMap[prefs.answerFontFamily]     || fontFamilyMap.system);
     body.style.setProperty('--a-font-weight', fontWeightMap[prefs.answerFontWeight]     || '400');
     body.style.setProperty('--a-font-style',  fontStyleMap[prefs.answerFontStyle]       || 'normal');
-    body.style.setProperty('--f-font-size',   fontSizeMap[prefs.feedbackFontSize]       || fontSizeMap.md);
+    body.style.setProperty('--v-font-size',   fontSizeMap[prefs.verdictFontSize]        || fontSizeMap.md);
+    body.style.setProperty('--v-font-family', fontFamilyMap[prefs.verdictFontFamily]    || fontFamilyMap.system);
+    body.style.setProperty('--v-font-weight', fontWeightMap[prefs.verdictFontWeight]    || '700');
+    body.style.setProperty('--v-font-style',  fontStyleMap[prefs.verdictFontStyle]      || 'normal');
+    body.style.setProperty('--f-font-size',   fontSizeMap[prefs.feedbackFontSize]       || fontSizeMap.sm);
     body.style.setProperty('--f-font-family', fontFamilyMap[prefs.feedbackFontFamily]   || fontFamilyMap.system);
     body.style.setProperty('--f-font-weight', fontWeightMap[prefs.feedbackFontWeight]   || '400');
-    body.style.setProperty('--f-font-style',  fontStyleMap[prefs.feedbackFontStyle]     || 'normal');
+    body.style.setProperty('--f-font-style',  fontStyleMap[prefs.feedbackFontStyle]     || 'italic');
     body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed]          || flipDurationMap.normal);
   }
 
@@ -3076,10 +3088,10 @@ Views.quiz = {
       renderCell(row.correctAnswer, revealEl);
     }
 
-    // reference text (optional)
+    // reference text (optional) — always shown on correct answers; on wrong answers only when showCorrect is enabled
     const refEl   = document.getElementById('feedback-reference');
     const refText = (row.reference || '').trim();
-    if (refText) {
+    if (refText && (isCorrect || State.qz.showCorrect)) {
       refEl.textContent = refText;
       refEl.classList.remove('hidden');
     } else {
@@ -3470,6 +3482,7 @@ Views.settings = {
     const prefs = Settings.load();
     ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
      'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle',
+     'verdictFontSize', 'verdictFontFamily', 'verdictFontWeight', 'verdictFontStyle',
      'feedbackFontSize', 'feedbackFontFamily', 'feedbackFontWeight', 'feedbackFontStyle',
      'flipSpeed'].forEach(key => {
       const ctrl = document.getElementById('setting-' + key);
@@ -3641,8 +3654,8 @@ function wireEvents() {
     const results = await Promise.all(rows.map(rowMissing));
     State.bld.missingImgIds = new Set(rows.filter((_, i) => results[i]).map(r => r.id));
 
-    btn.disabled    = false;
-    btn.textContent = '🖼 Missing Images';
+    btn.disabled  = false;
+    btn.innerHTML = `${ICON_IMG_UPLOAD} Missing Images`;
     Views.builder.renderQuestions();
   });
   document.getElementById('builder-search-input').addEventListener('input', e => {
@@ -3817,6 +3830,7 @@ function wireEvents() {
   // ── Settings view ──
   ['theme', 'questionFontSize', 'questionFontFamily', 'questionFontWeight', 'questionFontStyle',
    'answerFontSize', 'answerFontFamily', 'answerFontWeight', 'answerFontStyle',
+   'verdictFontSize', 'verdictFontFamily', 'verdictFontWeight', 'verdictFontStyle',
    'feedbackFontSize', 'feedbackFontFamily', 'feedbackFontWeight', 'feedbackFontStyle',
    'flipSpeed'].forEach(key => {
     const ctrl = document.getElementById('setting-' + key);

@@ -247,8 +247,8 @@
         <div class="builder-search-row">
           <input type="search" id="builder-search-input" class="builder-search-input" placeholder="🔍 Search questions…" autocomplete="off">
           <span id="builder-search-count" class="builder-search-count"></span>
-          <button id="btn-builder-missing-imgs" class="btn btn-ghost btn-sm" title="Filter to questions where any field has a broken image reference — a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter.">🖼 Missing Images</button>
-          <button id="btn-builder-missing-levels" class="btn btn-ghost btn-sm" title="Filter to questions that have no level assigned, or whose assigned level no longer exists in the deck's defined levels. Click again to clear the filter.">🏷 Missing Levels</button>
+          <button id="btn-builder-missing-imgs" class="btn btn-secondary" title="Filter to questions where any field has a broken image reference — a [LOCAL:name] not found in the Image Library, or an external URL that fails to load. Click again to clear the filter."><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg> Missing Images</button>
+          <button id="btn-builder-missing-levels" class="btn btn-secondary" title="Filter to questions that have no level assigned, or whose assigned level no longer exists in the deck's defined levels. Click again to clear the filter.">🏷 Missing Levels</button>
         </div>
         <div id="builder-bulk-bar" class="builder-bulk-bar hidden">
           <span id="bulk-count" class="bulk-count"></span>
@@ -550,11 +550,66 @@
         </div>
 
         <div class="card settings-group">
-          <h3 class="settings-group-title">� Feedback Text</h3>
+          <h3 class="settings-group-title">✅ Verdict Text</h3>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">Font size</div>
-              <div class="setting-desc">Size of all text in the answer feedback box</div>
+              <div class="setting-desc">Size of the Correct / Incorrect verdict message</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-verdictFontSize">
+                <button class="seg-btn" data-value="sm">S</button>
+                <button class="seg-btn" data-value="md">M</button>
+                <button class="seg-btn" data-value="lg">L</button>
+                <button class="seg-btn" data-value="xl">XL</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font family</div>
+              <div class="setting-desc">Typeface used for the verdict message</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-verdictFontFamily">
+                <button class="seg-btn" data-value="system">System</button>
+                <button class="seg-btn" data-value="serif">Serif</button>
+                <button class="seg-btn" data-value="mono">Mono</button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font weight</div>
+              <div class="setting-desc">Regular or bold</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-verdictFontWeight">
+                <button class="seg-btn" data-value="normal">Regular</button>
+                <button class="seg-btn" data-value="bold"><strong>Bold</strong></button>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font style</div>
+              <div class="setting-desc">Normal or italic</div>
+            </div>
+            <div class="setting-control">
+              <div class="seg-ctrl" id="setting-verdictFontStyle">
+                <button class="seg-btn" data-value="normal">Normal</button>
+                <button class="seg-btn" data-value="italic"><em>Italic</em></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3 class="settings-group-title">📋 Feedback Reference Text</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Font size</div>
+              <div class="setting-desc">Size of the reference text shown after answering</div>
             </div>
             <div class="setting-control">
               <div class="seg-ctrl" id="setting-feedbackFontSize">
@@ -568,7 +623,7 @@
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">Font family</div>
-              <div class="setting-desc">Typeface used in the feedback box</div>
+              <div class="setting-desc">Typeface used for the reference text</div>
             </div>
             <div class="setting-control">
               <div class="seg-ctrl" id="setting-feedbackFontFamily">
