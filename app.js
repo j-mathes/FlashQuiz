@@ -37,7 +37,7 @@ function contrastColor(hex) {
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
-  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.55 ? '#1a1a1a' : '#ffffff';
+  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.65 ? '#1a1a1a' : '#ffffff';
 }
 
 // Populate a level badge element from the row's level field.
@@ -3067,8 +3067,11 @@ Views.quiz = {
     // style buttons
     document.querySelectorAll('.choice-btn').forEach(b => {
       b.disabled = true;
-      if (State.qz.showCorrect && b.dataset.correct === '1') b.classList.add('correct');
-      else if (b === btn && !isCorrect) b.classList.add('wrong');
+      if (b === btn) {
+        b.classList.add(isCorrect ? 'correct' : 'wrong');
+      } else if (!isCorrect && State.qz.showCorrect && b.dataset.correct === '1') {
+        b.classList.add('correct');
+      }
     });
 
     // show feedback

@@ -74,6 +74,7 @@ body.theme-dark .choice-btn.wrong   { color: #fecaca; }
 body.theme-dark .report-score-pill  { color: #bbf7d0; }
 body.theme-dark .quiz-score-chip    { color: #c7d2fe; }
 body.theme-dark .badge-quiz         { color: #c7d2fe; }
+body.theme-dark .round-badge        { background: #78350f; color: #fcd34d; }
 
 /* ── Reset & Base ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1647,9 +1648,10 @@ button.level-badge {
     white-space: nowrap;
   }
   .round-badge { font-size: .75rem; white-space: nowrap; }
+  .quiz-level-scores { order: 4; margin-bottom: 0; margin-top: .5rem; }
   .quiz-sidebar {
     position: static;
-    order: 4;
+    order: 5;
   }
   .quiz-grid {
     display: flex;
