@@ -1678,6 +1678,9 @@ button.level-badge {
   .builder-search-input { flex: 1 1 100%; max-width: 100%; }
 
   .deck-name-input { flex: 1 1 100%; }
+
+  .builder-deck-item { flex-wrap: wrap; }
+  .builder-deck-item .deck-name { flex: 1 1 100%; }
 }
 
 @media (max-width: 420px) {
