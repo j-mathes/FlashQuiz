@@ -124,6 +124,24 @@ function parseCell(value) {
 /**
  * Render a CellContent object into a container element.
  */
+function makeZoomable(img) {
+  const wrap = document.createElement('span');
+  wrap.className = 'img-zoom-wrap';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'img-zoom-btn';
+  btn.setAttribute('aria-label', 'Zoom image');
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M1 5V1h4M8 1h4v4M12 8v4H8M5 12H1V8"/></svg>';
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    Lightbox.show(img.src, img.alt);
+  });
+  wrap.appendChild(img);
+  wrap.appendChild(btn);
+  return wrap;
+}
+
 function renderCell(cell, container) {
   container.innerHTML = '';
   if (!cell) return;
@@ -132,14 +150,15 @@ function renderCell(cell, container) {
     img.src   = cell.src;
     img.alt   = '';
     img.className = 'cell-image';
+    const zw = makeZoomable(img);
     img.onerror = () => {
-      img.remove();
+      zw.remove();
       const err = document.createElement('div');
       err.className = 'image-error';
       err.textContent = '⚠ Image unavailable';
       container.appendChild(err);
     };
-    container.appendChild(img);
+    container.appendChild(zw);
   } else if (cell.type === 'local-image') {
     // Show a placeholder, then async-swap once the image resolves from the library
     const ph = document.createElement('span');
@@ -154,14 +173,15 @@ function renderCell(cell, container) {
         el.src       = imgRec.src;
         el.alt       = cell.name;
         el.className = 'cell-image';
+        const zw = makeZoomable(el);
         el.onerror   = () => {
-          el.remove();
+          zw.remove();
           const err = document.createElement('div');
           err.className   = 'image-error';
           err.textContent = `⚠ Image error: ${cell.name}`;
           container.appendChild(err);
         };
-        container.appendChild(el);
+        container.appendChild(zw);
       } else {
         const err = document.createElement('div');
         err.className   = 'image-error';
@@ -174,8 +194,9 @@ function renderCell(cell, container) {
     img.src       = cell.src;
     img.alt       = cell.text || '';
     img.className = 'cell-image';
+    const zw = makeZoomable(img);
     img.onerror   = () => {
-      img.remove();
+      zw.remove();
       const err = document.createElement('div');
       err.className   = 'image-error';
       err.textContent = '⚠ Image unavailable';
@@ -187,14 +208,14 @@ function renderCell(cell, container) {
     if (cell.imgPosition === 'inline') {
       const wrap = document.createElement('div');
       wrap.className = 'cell-mixed-inline';
-      wrap.appendChild(img);
+      wrap.appendChild(zw);
       wrap.appendChild(txt);
       container.appendChild(wrap);
     } else if (cell.imgPosition === 'after') {
       container.appendChild(txt);
-      container.appendChild(img);
+      container.appendChild(zw);
     } else {
-      container.appendChild(img);
+      container.appendChild(zw);
       container.appendChild(txt);
     }
   } else {
@@ -722,6 +743,25 @@ const Modal = {
         { label: okLabel, cls: okCls, action: onOk }
       ]
     });
+  }
+};
+
+// ============================================================
+// LIGHTBOX
+// ============================================================
+const Lightbox = {
+  show(src, alt) {
+    const lb  = document.getElementById('img-lightbox');
+    const img = document.getElementById('img-lightbox-img');
+    img.src = src;
+    img.alt = alt || '';
+    lb.classList.remove('hidden');
+  },
+  hide() {
+    const lb  = document.getElementById('img-lightbox');
+    const img = document.getElementById('img-lightbox-img');
+    lb.classList.add('hidden');
+    img.src = '';
   }
 };
 
@@ -3587,6 +3627,14 @@ function wireEvents() {
   // ── Modal overlay click to close ──
   document.getElementById('modal-overlay').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-overlay')) Modal.hide();
+  });
+
+  // ── Image lightbox ──
+  document.getElementById('img-lightbox').addEventListener('click', () => Lightbox.hide());
+  document.getElementById('img-lightbox-img').addEventListener('click', e => e.stopPropagation());
+  document.getElementById('img-lightbox-close').addEventListener('click', e => { e.stopPropagation(); Lightbox.hide(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !document.getElementById('img-lightbox').classList.contains('hidden')) Lightbox.hide();
   });
 
   // ── Users view ──

@@ -923,6 +923,77 @@ select { cursor: pointer; }
   word-break: break-all;
 }
 
+/* ── Image zoom button ──────────────────────────────────── */
+.img-zoom-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.img-zoom-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: .8;
+  transition: opacity .15s;
+  padding: 0;
+  line-height: 1;
+  touch-action: manipulation;
+  z-index: 1;
+}
+.img-zoom-btn:hover { opacity: 1; }
+.cell-mixed-inline .img-zoom-wrap { flex-shrink: 0; }
+
+/* ── Image lightbox ──────────────────────────────────────── */
+.img-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 1rem;
+  cursor: zoom-out;
+}
+.img-lightbox.hidden { display: none; }
+.img-lightbox img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+  cursor: default;
+  display: block;
+}
+.img-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-full);
+  width: 40px;
+  height: 40px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-lightbox-close:hover { background: rgba(255,255,255,.3); }
+
 .fc-nav-bar {
   display: flex;
   align-items: center;
@@ -993,18 +1064,18 @@ select { cursor: pointer; }
 /* Resume saved-progress card */
 .quiz-resume-card {
   display: flex;
-  align-items: center;
-  gap: .75rem;
+  flex-direction: column;
+  gap: .4rem;
   padding: .75rem 1rem;
   background: var(--clr-primary-light);
   border: 1.5px solid var(--clr-primary);
   border-radius: var(--radius-lg);
   margin-bottom: 1rem;
-  flex-wrap: wrap;
 }
+.resume-deck-name { font-size: 1.05rem; font-weight: 700; }
+.resume-body { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 .resume-icon { font-size: 1.4rem; flex-shrink: 0; }
 .resume-info { flex: 1; display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
-.resume-info strong { font-size: .98rem; }
 .resume-info .text-muted { font-size: .8rem; }
 .resume-actions { display: flex; gap: .4rem; flex-shrink: 0; }
 

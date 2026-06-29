@@ -327,14 +327,16 @@
       <div id="quiz-selector" class="dataset-selector">
         <h2>Choose a Deck</h2>
         <div id="quiz-resume-card" class="quiz-resume-card hidden">
-          <span class="resume-icon">↩</span>
-          <div class="resume-info">
-            <strong id="resume-deck-name"></strong>
-            <span id="resume-detail" class="text-muted"></span>
-          </div>
-          <div class="resume-actions">
-            <button id="btn-resume-quiz" class="btn btn-primary btn-sm">Resume</button>
-            <button id="btn-discard-resume" class="btn btn-ghost btn-sm">Discard</button>
+          <div id="resume-deck-name" class="resume-deck-name"></div>
+          <div class="resume-body">
+            <span class="resume-icon">↩</span>
+            <div class="resume-info">
+              <span id="resume-detail" class="text-muted"></span>
+            </div>
+            <div class="resume-actions">
+              <button id="btn-resume-quiz" class="btn btn-primary btn-sm">Resume</button>
+              <button id="btn-discard-resume" class="btn btn-ghost btn-sm">Discard</button>
+            </div>
           </div>
         </div>
         <div id="quiz-deck-list" class="deck-picker-list"></div>
@@ -707,6 +709,12 @@
       j-mathes/FlashQuiz
     </a>
   </footer>
+
+  <!-- ── IMAGE LIGHTBOX ─────────────────────────────────── -->
+  <div id="img-lightbox" class="img-lightbox hidden" role="dialog" aria-modal="true" aria-label="Image zoom">
+    <button class="img-lightbox-close" id="img-lightbox-close" aria-label="Close">&#x2715;</button>
+    <img id="img-lightbox-img" src="" alt="">
+  </div>
 
   <!-- ── MODAL ──────────────────────────────────────────── -->
   <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
