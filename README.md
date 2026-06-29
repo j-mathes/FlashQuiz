@@ -73,7 +73,7 @@ The first row must be a header row beginning with `Level` for the app to use thi
 
 ### Quiz Builder
 
-Build or edit decks in the app. Each field supports text, an image, or both. On desktop the toolbar and deck name stay **frozen at the top** as you scroll through questions. On mobile, the deck name and action buttons scroll away and only the **search bar and filter buttons stay pinned** at the top.
+Build or edit decks in the app. Each field supports text, an image, or both. On desktop the toolbar, deck name, and search bar stay **frozen at the top** as you scroll through questions. On mobile, the deck name and action buttons scroll away and only the **search bar and filter buttons stay pinned** at the top.
 
 #### Search
 A search bar below the toolbar lets you filter questions in real time by typing any text that appears in the question, correct answer, or wrong answers. A result count (e.g. `3 of 45`) is shown while a search is active. The search works alongside the Missing Images and Missing Levels filters simultaneously.
