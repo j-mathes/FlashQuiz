@@ -533,7 +533,7 @@ select { cursor: pointer; }
 .sc-deck-item:hover { background: var(--clr-primary-light); }
 .sc-q-item.sc-q-sel,
 .sc-deck-item.sc-q-sel { background: var(--clr-primary-light); }
-.sc-cb { flex-shrink: 0; margin-top: .15rem; }
+.sc-cb { flex-shrink: 0; margin-top: .15rem; pointer-events: none; }
 .sc-q-body {
   display: flex;
   flex-direction: column;
@@ -559,7 +559,13 @@ select { cursor: pointer; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sc-level-chip { font-size: .72rem; padding: .1em .45em; }
+.sc-level-chip { font-size: .72rem; padding: .1em .45em; flex-shrink: 0; }
+.sc-level-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  padding: .2rem 0 .1rem;
+}
 .sc-deck-name { font-weight: 600; flex: 1; font-size: .95rem; }
 .sc-deck-meta { font-size: .82rem; color: var(--clr-text-muted); flex-shrink: 0; }
 .sc-deck-list { max-height: 40vh; }

@@ -2810,11 +2810,14 @@ Views.builder = {
 // ============================================================
 Views.builder.split = {
   open(ds) {
+    const levels = ds.levels || [];
     State.bld.sp = {
       ds,
-      selectedIds: new Set(ds.rows.map(r => r.id)),
-      lastChecked: null,
-      search: ''
+      selectedIds:      new Set(ds.rows.map(r => r.id)),
+      lastChecked:      null,
+      search:           '',
+      activeLevels:     new Set(levels.map(l => l.name)),
+      includeUnlabeled: true
     };
     document.getElementById('builder-deck-list').classList.add('hidden');
     document.getElementById('builder-editor').classList.add('hidden');
@@ -2830,18 +2833,31 @@ Views.builder.split = {
   },
 
   render() {
-    const { ds, selectedIds, search } = State.bld.sp;
+    const { ds, selectedIds, search, activeLevels, includeUnlabeled } = State.bld.sp;
     const panel  = document.getElementById('builder-split');
     const levels = ds.levels || [];
     const needle = search.trim().toLowerCase();
-    const filtered = needle
+
+    let filtered = needle
       ? ds.rows.filter(r => {
           const haystack = [r.question, r.correctAnswer, ...(r.wrongAnswers || [])]
             .map(cellLabel).join(' ').toLowerCase();
           return haystack.includes(needle);
         })
       : ds.rows;
-    const selCount = ds.rows.filter(r => selectedIds.has(r.id)).length;
+
+    // Visibility filter by active levels
+    filtered = filtered.filter(r =>
+      r.level ? activeLevels.has(r.level) : includeUnlabeled
+    );
+
+    const totalSel   = selectedIds.size;
+    const hasUnlabel = ds.rows.some(r => !r.level);
+    const levelFilterHtml = levels.length ? `
+      <div class="sc-level-filters">
+        ${levels.map(l => `<button class="level-badge lf-badge-toggle${activeLevels.has(l.name) ? '' : ' lf-badge-off'}" data-lf="${esc(l.name)}" style="background:${esc(l.color)};color:${contrastColor(l.color)}">${esc(l.name)}</button>`).join('')}
+        ${hasUnlabel ? `<button class="level-badge lf-badge-toggle lf-badge-unlabeled${includeUnlabeled ? '' : ' lf-badge-off'}" data-lf="">Unlabeled</button>` : ''}
+      </div>` : '';
 
     panel.innerHTML = `
       <div class="sc-header card">
@@ -2849,10 +2865,11 @@ Views.builder.split = {
           <button id="btn-split-back" class="btn btn-ghost">\u2190 Back</button>
           <h3 class="sc-title">\u2702 Split: <em>${esc(ds.name)}</em></h3>
         </div>
+        ${levelFilterHtml}
         <div class="sc-toolbar">
           <button id="btn-split-all"  class="btn btn-ghost btn-sm">Select All</button>
           <button id="btn-split-none" class="btn btn-ghost btn-sm">Deselect All</button>
-          <span class="sc-count">${selCount} of ${ds.rows.length} selected</span>
+          <span class="sc-count">${totalSel} of ${ds.rows.length} selected${filtered.length < ds.rows.length ? ` \u00b7 ${filtered.length} shown` : ''}</span>
           <input type="search" id="split-search" class="sc-search builder-search-input"
             placeholder="\ud83d\udd0d Filter questions\u2026" value="${esc(search)}">
         </div>
@@ -2863,15 +2880,16 @@ Views.builder.split = {
           : filtered.map(r => {
               const lv    = levels.find(l => l.name === r.level);
               const badge = lv
-                ? ` <span class="level-badge sc-level-chip" style="background:${esc(lv.color)};color:${contrastColor(lv.color)}">${esc(lv.name)}</span>`
+                ? `<span class="level-badge sc-level-chip" style="background:${esc(lv.color)};color:${contrastColor(lv.color)}">${esc(lv.name)}</span>`
                 : '';
-              return `<label class="sc-q-item${selectedIds.has(r.id) ? ' sc-q-sel' : ''}" data-id="${esc(r.id)}">
-                <input type="checkbox" class="sc-cb" data-id="${esc(r.id)}" ${selectedIds.has(r.id) ? 'checked' : ''}>
+              return `<div class="sc-q-item${selectedIds.has(r.id) ? ' sc-q-sel' : ''}" data-id="${esc(r.id)}">
+                <input type="checkbox" class="sc-cb" ${selectedIds.has(r.id) ? 'checked' : ''}>
+                ${badge}
                 <span class="sc-q-body">
                   <span class="sc-q-text">${esc(cellLabel(r.question))}</span>
-                  <span class="sc-q-sub">\u2192 ${esc(cellLabel(r.correctAnswer))}${badge}</span>
+                  <span class="sc-q-sub">\u2192 ${esc(cellLabel(r.correctAnswer))}</span>
                 </span>
-              </label>`;
+              </div>`;
             }).join('')
         }
       </div>
@@ -2888,6 +2906,27 @@ Views.builder.split = {
       </div>`;
 
     document.getElementById('btn-split-back').addEventListener('click', () => Views.builder.split.close());
+
+    // Level visibility toggles — toggling OFF also deselects that level's questions
+    // so the export always matches exactly what is visibly checked
+    panel.querySelectorAll('[data-lf]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lf = btn.dataset.lf;
+        if (lf === '') {
+          State.bld.sp.includeUnlabeled = !State.bld.sp.includeUnlabeled;
+          if (!State.bld.sp.includeUnlabeled) {
+            ds.rows.filter(r => !r.level).forEach(r => State.bld.sp.selectedIds.delete(r.id));
+          }
+        } else if (State.bld.sp.activeLevels.has(lf)) {
+          State.bld.sp.activeLevels.delete(lf);
+          ds.rows.filter(r => r.level === lf).forEach(r => State.bld.sp.selectedIds.delete(r.id));
+        } else {
+          State.bld.sp.activeLevels.add(lf);
+        }
+        Views.builder.split.render();
+      });
+    });
+
     document.getElementById('btn-split-all').addEventListener('click', () => {
       filtered.forEach(r => State.bld.sp.selectedIds.add(r.id));
       Views.builder.split.render();
@@ -2900,27 +2939,30 @@ Views.builder.split = {
       State.bld.sp.search = e.target.value;
       Views.builder.split.render();
     });
-    panel.querySelectorAll('.sc-cb').forEach(cb => {
-      cb.addEventListener('change', e => {
-        const id = e.target.dataset.id;
+
+    // Row click — div click events carry shiftKey, fixing shift-range selection
+    panel.querySelectorAll('.sc-q-item').forEach(item => {
+      item.addEventListener('click', e => {
+        const id    = item.dataset.id;
+        const nowOn = !State.bld.sp.selectedIds.has(id);
         if (e.shiftKey && State.bld.sp.lastChecked) {
           const ids = filtered.map(r => r.id);
           const i1  = ids.indexOf(State.bld.sp.lastChecked);
           const i2  = ids.indexOf(id);
           const [lo, hi] = i1 < i2 ? [i1, i2] : [i2, i1];
-          const nowOn = e.target.checked;
           for (let i = lo; i <= hi; i++) {
-            if (nowOn) selectedIds.add(ids[i]);
-            else       selectedIds.delete(ids[i]);
+            if (nowOn) State.bld.sp.selectedIds.add(ids[i]);
+            else       State.bld.sp.selectedIds.delete(ids[i]);
           }
         } else {
-          if (e.target.checked) selectedIds.add(id);
-          else                  selectedIds.delete(id);
+          if (nowOn) State.bld.sp.selectedIds.add(id);
+          else       State.bld.sp.selectedIds.delete(id);
           State.bld.sp.lastChecked = id;
         }
         Views.builder.split.render();
       });
     });
+
     document.getElementById('btn-split-save').addEventListener('click',   () => Views.builder.split.saveAsDeck());
     document.getElementById('btn-split-export').addEventListener('click', () => Views.builder.split.exportSelected());
   },

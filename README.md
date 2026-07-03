@@ -139,6 +139,28 @@ In CSV/Excel, Reference is the second column (column B when levels are present).
   - **Excel (.xlsx)** — preserves multi-line cells (text + image) correctly when opened in Excel
   - **Bundle ZIP (deck + images)** — packages the deck file and all referenced Image Library pictures into a single `.zip` for easy transfer; choose CSV or Excel as the deck format inside the ZIP
 
+#### ✂ Split a Deck
+Click **✂ Split** on any deck in the Builder list to open the split panel.
+
+- Every question is listed with a checkbox (all pre-selected by default)
+- The **level badge** for each question appears between the checkbox and the question text for quick identification
+- **Level filter badges** at the top toggle whole levels on or off — turning a level off hides its questions *and* deselects them, so the export always contains exactly what is visibly checked; turning it back on shows those questions unchecked
+- **Select All / Deselect All** operate only on the currently visible (non-hidden) questions
+- **Shift+click** any row to range-select from the last-clicked row to the current one
+- **🔍 Filter** narrows the list by question or answer text; Select All/None respects the filter
+- The count reads e.g. `12 of 45 selected · 20 shown` when a level or text filter is active
+- Enter a **New deck name**, then **💾 Save as New Deck** (saves to IndexedDB) or **⬇ Export** (same CSV / Excel / Bundle ZIP options as the main builder export)
+- Only levels that are actually used by the selected questions are carried into the new deck
+
+#### ⊕ Combine Decks
+Click **⊕ Combine** in the Builder header to merge two or more decks into one new deck. The flow has up to three steps:
+
+**Step 1 — Select Decks:** Check two or more decks from the list; Next → is disabled until at least two are selected.
+
+**Step 2 — Resolve Level Conflicts** *(only shown when needed)*: If the same level name exists in multiple decks with different colours, each conflict is listed with a radio button per deck so you can choose which colour to keep. This step is skipped when all shared level names already agree on colour.
+
+**Step 3 — Save:** Shows a summary of the decks being merged, total question count, and the final level badges. Enter a **New deck name** (pre-filled as `"Deck A + Deck B"`), then **💾 Save as New Deck** or **⬇ Export**.
+
 ### Image Library
 - Upload images once (up to 5 MB each) from the **Data** page; stored in IndexedDB
 - Upload multiple images at once to a group using its **📤 Upload** button
