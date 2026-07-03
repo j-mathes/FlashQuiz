@@ -1825,8 +1825,9 @@ Views.builder = {
         div.innerHTML = `
           <div class="deck-name">${esc(m.name)}</div>
           <div class="dataset-meta">${m.rowCount} Q · ${fmtDate(m.createdAt)}</div>
-          <button class="btn btn-secondary" data-action="edit" data-id="${m.id}">✏ Edit</button>
-          <button class="btn btn-danger"    data-action="del"  data-id="${m.id}">Delete</button>`;
+          <button class="btn btn-secondary" data-action="split" data-id="${m.id}">✂ Split</button>
+          <button class="btn btn-secondary" data-action="edit"  data-id="${m.id}">✏ Edit</button>
+          <button class="btn btn-danger"    data-action="del"   data-id="${m.id}">Delete</button>`;
         list.appendChild(div);
       });
 
@@ -1837,6 +1838,9 @@ Views.builder = {
           if (action === 'edit') {
             const ds = await Storage.getDataset(id);
             if (ds) Views.builder.openEditor(ds);
+          } else if (action === 'split') {
+            const ds = await Storage.getDataset(id);
+            if (ds) Views.builder.split.open(ds);
           } else if (action === 'del') {
             const meta = Storage.getDatasetMetas().find(m => m.id === id);
             Modal.confirm('Delete Deck', `Delete "${meta ? meta.name : id}"?`, async () => {
@@ -1848,10 +1852,13 @@ Views.builder = {
       });
     }
 
-    // hide editor when rendering list
+    // hide editor / split / combine when rendering deck list
     if (!State.bld.editingId) {
       document.getElementById('builder-editor').classList.add('hidden');
     }
+    document.getElementById('builder-split')?.classList.add('hidden');
+    document.getElementById('builder-combine')?.classList.add('hidden');
+    document.getElementById('builder-deck-list').classList.remove('hidden');
   },
 
   newDeck() {
@@ -1880,8 +1887,10 @@ Views.builder = {
     if (levelsBtn) levelsBtn.classList.remove('active');
     State.bld.selectedIds = new Set();
     State.bld.lastCheckedId = null;
-    document.getElementById('builder-editor').classList.remove('hidden');
+    document.getElementById('builder-split')?.classList.add('hidden');
+    document.getElementById('builder-combine')?.classList.add('hidden');
     document.getElementById('builder-deck-list').innerHTML = '';
+    document.getElementById('builder-editor').classList.remove('hidden');
 
     Views.builder.renderQuestions();
   },
@@ -2793,6 +2802,378 @@ Views.builder = {
         Views.builder.renderDeckList();
       });
     }
+  }
+};
+
+// ============================================================
+// VIEW: BUILDER – SPLIT
+// ============================================================
+Views.builder.split = {
+  open(ds) {
+    State.bld.sp = {
+      ds,
+      selectedIds: new Set(ds.rows.map(r => r.id)),
+      lastChecked: null,
+      search: ''
+    };
+    document.getElementById('builder-deck-list').classList.add('hidden');
+    document.getElementById('builder-editor').classList.add('hidden');
+    document.getElementById('builder-combine').classList.add('hidden');
+    document.getElementById('builder-split').classList.remove('hidden');
+    Views.builder.split.render();
+  },
+
+  close() {
+    document.getElementById('builder-split').classList.add('hidden');
+    State.bld.sp = null;
+    Views.builder.renderDeckList();
+  },
+
+  render() {
+    const { ds, selectedIds, search } = State.bld.sp;
+    const panel  = document.getElementById('builder-split');
+    const levels = ds.levels || [];
+    const needle = search.trim().toLowerCase();
+    const filtered = needle
+      ? ds.rows.filter(r => {
+          const haystack = [r.question, r.correctAnswer, ...(r.wrongAnswers || [])]
+            .map(cellLabel).join(' ').toLowerCase();
+          return haystack.includes(needle);
+        })
+      : ds.rows;
+    const selCount = ds.rows.filter(r => selectedIds.has(r.id)).length;
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-split-back" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2702 Split: <em>${esc(ds.name)}</em></h3>
+        </div>
+        <div class="sc-toolbar">
+          <button id="btn-split-all"  class="btn btn-ghost btn-sm">Select All</button>
+          <button id="btn-split-none" class="btn btn-ghost btn-sm">Deselect All</button>
+          <span class="sc-count">${selCount} of ${ds.rows.length} selected</span>
+          <input type="search" id="split-search" class="sc-search builder-search-input"
+            placeholder="\ud83d\udd0d Filter questions\u2026" value="${esc(search)}">
+        </div>
+      </div>
+      <div class="sc-list" id="split-q-list">
+        ${filtered.length === 0
+          ? `<div class="empty-state"><p>No questions match.</p></div>`
+          : filtered.map(r => {
+              const lv    = levels.find(l => l.name === r.level);
+              const badge = lv
+                ? ` <span class="level-badge sc-level-chip" style="background:${esc(lv.color)};color:${contrastColor(lv.color)}">${esc(lv.name)}</span>`
+                : '';
+              return `<label class="sc-q-item${selectedIds.has(r.id) ? ' sc-q-sel' : ''}" data-id="${esc(r.id)}">
+                <input type="checkbox" class="sc-cb" data-id="${esc(r.id)}" ${selectedIds.has(r.id) ? 'checked' : ''}>
+                <span class="sc-q-body">
+                  <span class="sc-q-text">${esc(cellLabel(r.question))}</span>
+                  <span class="sc-q-sub">\u2192 ${esc(cellLabel(r.correctAnswer))}${badge}</span>
+                </span>
+              </label>`;
+            }).join('')
+        }
+      </div>
+      <div class="sc-footer card">
+        <div class="sc-name-row">
+          <label class="sc-label">New deck name</label>
+          <input type="text" id="split-name-input" class="deck-name-input sc-name-input"
+            placeholder="${esc(ds.name)} (split)" maxlength="80" value="${esc(ds.name + ' (split)')}">
+        </div>
+        <div class="sc-save-row">
+          <button id="btn-split-save"   class="btn btn-success">\ud83d\udcbe Save as New Deck</button>
+          <button id="btn-split-export" class="btn btn-secondary">\u2b07 Export</button>
+        </div>
+      </div>`;
+
+    document.getElementById('btn-split-back').addEventListener('click', () => Views.builder.split.close());
+    document.getElementById('btn-split-all').addEventListener('click', () => {
+      filtered.forEach(r => State.bld.sp.selectedIds.add(r.id));
+      Views.builder.split.render();
+    });
+    document.getElementById('btn-split-none').addEventListener('click', () => {
+      filtered.forEach(r => State.bld.sp.selectedIds.delete(r.id));
+      Views.builder.split.render();
+    });
+    document.getElementById('split-search').addEventListener('input', e => {
+      State.bld.sp.search = e.target.value;
+      Views.builder.split.render();
+    });
+    panel.querySelectorAll('.sc-cb').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const id = e.target.dataset.id;
+        if (e.shiftKey && State.bld.sp.lastChecked) {
+          const ids = filtered.map(r => r.id);
+          const i1  = ids.indexOf(State.bld.sp.lastChecked);
+          const i2  = ids.indexOf(id);
+          const [lo, hi] = i1 < i2 ? [i1, i2] : [i2, i1];
+          const nowOn = e.target.checked;
+          for (let i = lo; i <= hi; i++) {
+            if (nowOn) selectedIds.add(ids[i]);
+            else       selectedIds.delete(ids[i]);
+          }
+        } else {
+          if (e.target.checked) selectedIds.add(id);
+          else                  selectedIds.delete(id);
+          State.bld.sp.lastChecked = id;
+        }
+        Views.builder.split.render();
+      });
+    });
+    document.getElementById('btn-split-save').addEventListener('click',   () => Views.builder.split.saveAsDeck());
+    document.getElementById('btn-split-export').addEventListener('click', () => Views.builder.split.exportSelected());
+  },
+
+  _buildDs() {
+    const { ds, selectedIds } = State.bld.sp;
+    const name   = document.getElementById('split-name-input')?.value.trim() || ds.name + ' (split)';
+    const rows   = ds.rows.filter(r => selectedIds.has(r.id)).map(r => ({ ...r, id: genId() }));
+    const used   = new Set(rows.map(r => r.level).filter(Boolean));
+    const levels = (ds.levels || []).filter(l => used.has(l.name));
+    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows };
+  },
+
+  saveAsDeck() {
+    if (!State.bld.sp.selectedIds.size) { Toast.show('Select at least one question', 'warning'); return; }
+    const newDs = Views.builder.split._buildDs();
+    Modal.confirm(
+      'Save as New Deck',
+      `Save ${newDs.rows.length} question${newDs.rows.length !== 1 ? 's' : ''} as \u201c${newDs.name}\u201d?`,
+      async () => {
+        await Storage.saveDataset(newDs);
+        Toast.show(`Saved \u201c${newDs.name}\u201d (${newDs.rows.length} questions)`, 'success');
+        Views.builder.split.close();
+      },
+      'Save', 'btn-success'
+    );
+  },
+
+  exportSelected() {
+    if (!State.bld.sp.selectedIds.size) { Toast.show('Select at least one question', 'warning'); return; }
+    const saved = State.bld.draft;
+    State.bld.draft = Views.builder.split._buildDs();
+    Views.builder.showExportDialog();
+    setTimeout(() => { State.bld.draft = saved; }, 100);
+  }
+};
+
+// ============================================================
+// VIEW: BUILDER – COMBINE
+// ============================================================
+Views.builder.combine = {
+  open() {
+    State.bld.cm = {
+      selectedIds:    new Set(),
+      loadedDecks:    [],
+      levelColors:    new Map(),
+      conflicts:      [],
+      resolvedColors: new Map()
+    };
+    document.getElementById('builder-deck-list').classList.add('hidden');
+    document.getElementById('builder-editor').classList.add('hidden');
+    document.getElementById('builder-split').classList.add('hidden');
+    document.getElementById('builder-combine').classList.remove('hidden');
+    Views.builder.combine.renderStep1();
+  },
+
+  close() {
+    document.getElementById('builder-combine').classList.add('hidden');
+    State.bld.cm = null;
+    Views.builder.renderDeckList();
+  },
+
+  renderStep1() {
+    const panel = document.getElementById('builder-combine');
+    const metas = Storage.getDatasetMetas();
+    const sel   = State.bld.cm.selectedIds;
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-1" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Step 1 of 3: Select Decks</span></h3>
+        </div>
+        <p class="sc-sub">Select two or more decks to merge into a new deck.</p>
+      </div>
+      <div class="sc-list sc-deck-list" id="cm-deck-list">
+        ${!metas.length
+          ? `<div class="empty-state"><p>No decks available.</p></div>`
+          : metas.map(m => `
+            <label class="sc-deck-item${sel.has(m.id) ? ' sc-q-sel' : ''}" data-id="${esc(m.id)}">
+              <input type="checkbox" class="cm-deck-cb" data-id="${esc(m.id)}" ${sel.has(m.id) ? 'checked' : ''}>
+              <span class="sc-deck-name">${esc(m.name)}</span>
+              <span class="sc-deck-meta">${m.rowCount} question${m.rowCount !== 1 ? 's' : ''} \u00b7 ${fmtDate(m.createdAt)}</span>
+            </label>`).join('')
+        }
+      </div>
+      <div class="sc-footer card">
+        <button id="btn-cm-next-1" class="btn btn-primary" ${sel.size < 2 ? 'disabled' : ''}>Next \u2192</button>
+      </div>`;
+
+    document.getElementById('btn-cm-back-1').addEventListener('click', () => Views.builder.combine.close());
+    panel.querySelectorAll('.cm-deck-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const newSel = new Set();
+        panel.querySelectorAll('.cm-deck-cb:checked').forEach(c => newSel.add(c.dataset.id));
+        State.bld.cm.selectedIds = newSel;
+        document.getElementById('btn-cm-next-1').disabled = newSel.size < 2;
+        panel.querySelectorAll('.sc-deck-item').forEach(item => {
+          item.classList.toggle('sc-q-sel', newSel.has(item.dataset.id));
+        });
+      });
+    });
+
+    document.getElementById('btn-cm-next-1').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-cm-next-1');
+      btn.disabled = true; btn.textContent = 'Loading\u2026';
+      const ids   = [...State.bld.cm.selectedIds];
+      const decks = (await Promise.all(ids.map(id => Storage.getDataset(id)))).filter(Boolean);
+      State.bld.cm.loadedDecks = decks;
+
+      // Detect conflicts: same level name, different colors across selected decks
+      const levelColors = new Map();
+      decks.forEach(d => {
+        (d.levels || []).forEach(l => {
+          if (!levelColors.has(l.name)) levelColors.set(l.name, []);
+          const existing = levelColors.get(l.name);
+          if (!existing.some(e => e.color === l.color)) {
+            existing.push({ color: l.color, deckName: d.name });
+          }
+        });
+      });
+      State.bld.cm.levelColors = levelColors;
+
+      const conflicts = [];
+      for (const [name, entries] of levelColors) {
+        if (entries.length > 1) conflicts.push({ name, entries });
+      }
+      State.bld.cm.conflicts = conflicts;
+
+      // Pre-fill resolved: first color wins unless overridden in step 2
+      State.bld.cm.resolvedColors = new Map();
+      for (const [name, entries] of levelColors) {
+        State.bld.cm.resolvedColors.set(name, entries[0].color);
+      }
+
+      if (conflicts.length > 0) {
+        Views.builder.combine.renderStep2();
+      } else {
+        Views.builder.combine.renderStep3();
+      }
+    });
+  },
+
+  renderStep2() {
+    const panel     = document.getElementById('builder-combine');
+    const conflicts = State.bld.cm.conflicts;
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-2" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Step 2 of 3: Resolve Level Conflicts</span></h3>
+        </div>
+        <p class="sc-sub">These level names appear in multiple decks with different colors. Choose which color to keep in the combined deck.</p>
+      </div>
+      <div class="sc-list sc-conflicts-list">
+        ${conflicts.map((c, ci) => `
+          <div class="sc-conflict card">
+            <div class="sc-conflict-name">Level: <strong>${esc(c.name)}</strong></div>
+            ${c.entries.map((e, ei) => `
+              <label class="sc-conflict-opt">
+                <input type="radio" name="cm-conflict-${ci}" value="${esc(e.color)}" ${ei === 0 ? 'checked' : ''}>
+                <span class="level-badge" style="background:${esc(e.color)};color:${contrastColor(e.color)}">${esc(c.name)}</span>
+                <span class="sc-conflict-src">from <em>${esc(e.deckName)}</em></span>
+              </label>`).join('')}
+          </div>`).join('')}
+      </div>
+      <div class="sc-footer card">
+        <button id="btn-cm-next-2" class="btn btn-primary">Next \u2192</button>
+      </div>`;
+
+    document.getElementById('btn-cm-back-2').addEventListener('click', () => Views.builder.combine.renderStep1());
+    document.getElementById('btn-cm-next-2').addEventListener('click', () => {
+      conflicts.forEach((c, ci) => {
+        const checked = panel.querySelector(`input[name="cm-conflict-${ci}"]:checked`);
+        if (checked) State.bld.cm.resolvedColors.set(c.name, checked.value);
+      });
+      Views.builder.combine.renderStep3();
+    });
+  },
+
+  renderStep3() {
+    const panel  = document.getElementById('builder-combine');
+    const { loadedDecks, levelColors, resolvedColors, conflicts } = State.bld.cm;
+    const totalQ = loadedDecks.reduce((s, d) => s + d.rows.length, 0);
+    const levelHtml = [...levelColors].map(([name]) => {
+      const color = resolvedColors.get(name) || '#999';
+      return `<span class="level-badge" style="background:${esc(color)};color:${contrastColor(color)}">${esc(name)}</span>`;
+    }).join(' ');
+    const suggested = loadedDecks.map(d => d.name).join(' + ');
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-3" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Step 3 of 3: Save</span></h3>
+        </div>
+      </div>
+      <div class="sc-footer card" style="gap:1rem">
+        <div class="sc-combine-summary">
+          <p>Merging <strong>${loadedDecks.length}</strong> deck${loadedDecks.length !== 1 ? 's' : ''}:</p>
+          <ul class="sc-combine-deck-names">${loadedDecks.map(d => `<li>${esc(d.name)}</li>`).join('')}</ul>
+          <p class="sc-combine-total"><strong>${totalQ}</strong> total question${totalQ !== 1 ? 's' : ''}</p>
+          ${levelHtml ? `<div class="sc-combine-levels">${levelHtml}</div>` : ''}
+        </div>
+        <div class="sc-name-row">
+          <label class="sc-label">New deck name</label>
+          <input type="text" id="cm-name-input" class="deck-name-input sc-name-input"
+            placeholder="Combined Deck" maxlength="80" value="${esc(suggested)}">
+        </div>
+        <div class="sc-save-row">
+          <button id="btn-cm-save"   class="btn btn-success">\ud83d\udcbe Save as New Deck</button>
+          <button id="btn-cm-export" class="btn btn-secondary">\u2b07 Export</button>
+        </div>
+      </div>`;
+
+    document.getElementById('btn-cm-back-3').addEventListener('click', () =>
+      conflicts.length > 0 ? Views.builder.combine.renderStep2() : Views.builder.combine.renderStep1()
+    );
+    document.getElementById('btn-cm-save').addEventListener('click',   () => Views.builder.combine.saveAsDeck());
+    document.getElementById('btn-cm-export').addEventListener('click', () => Views.builder.combine.exportCombined());
+  },
+
+  _buildDs() {
+    const { loadedDecks, levelColors, resolvedColors } = State.bld.cm;
+    const name   = document.getElementById('cm-name-input')?.value.trim() || 'Combined Deck';
+    const levels = [...levelColors].map(([lname]) => ({
+      name:  lname,
+      color: resolvedColors.get(lname) || LEVEL_COLORS[0]
+    }));
+    const rows = loadedDecks.flatMap(d => d.rows.map(r => ({ ...r, id: genId() })));
+    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows };
+  },
+
+  saveAsDeck() {
+    const newDs = Views.builder.combine._buildDs();
+    Modal.confirm(
+      'Save Combined Deck',
+      `Save ${newDs.rows.length} question${newDs.rows.length !== 1 ? 's' : ''} as \u201c${newDs.name}\u201d?`,
+      async () => {
+        await Storage.saveDataset(newDs);
+        Toast.show(`Saved \u201c${newDs.name}\u201d (${newDs.rows.length} questions)`, 'success');
+        Views.builder.combine.close();
+      },
+      'Save', 'btn-success'
+    );
+  },
+
+  exportCombined() {
+    const saved = State.bld.draft;
+    State.bld.draft = Views.builder.combine._buildDs();
+    Views.builder.showExportDialog();
+    setTimeout(() => { State.bld.draft = saved; }, 100);
   }
 };
 
@@ -3737,7 +4118,8 @@ function wireEvents() {
   document.getElementById('btn-export-xlsx').addEventListener('click', () => DataExport.downloadXLSX());
 
   // ── Builder view ──
-  document.getElementById('btn-new-deck').addEventListener('click',       () => Views.builder.newDeck());
+  document.getElementById('btn-new-deck').addEventListener('click',      () => Views.builder.newDeck());
+  document.getElementById('btn-combine-decks').addEventListener('click', () => Views.builder.combine.open());
   document.getElementById('btn-builder-add-q').addEventListener('click',  () => Views.builder.addQuestion());
   document.getElementById('btn-builder-missing-imgs').addEventListener('click', async e => {
     const btn = e.currentTarget;

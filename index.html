@@ -158,9 +158,14 @@
     <section id="view-builder" class="view">
       <div class="view-header">
         <h2>Quiz Builder</h2>
-        <button id="btn-new-deck" class="btn btn-primary">+ New Deck</button>
+        <div class="view-header-btns">
+          <button id="btn-new-deck" class="btn btn-primary">+ New Deck</button>
+          <button id="btn-combine-decks" class="btn btn-secondary" title="Merge two or more decks into one new deck">⊕ Combine</button>
+        </div>
       </div>
       <div id="builder-deck-list" class="builder-deck-list"></div>
+      <div id="builder-split"   class="builder-split-panel   hidden"></div>
+      <div id="builder-combine" class="builder-combine-panel hidden"></div>
 
       <!-- editor panel (hidden until a deck is open) -->
       <div id="builder-editor" class="builder-editor hidden">
