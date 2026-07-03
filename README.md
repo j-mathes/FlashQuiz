@@ -60,12 +60,13 @@ The first row must be a header row beginning with `Level` for the app to use thi
 - **Image zoom** — any image on the front or back of a card has a small expand button (⛶) in its corner; tap or click it to open a full-screen lightbox; tap the background, press ✕, or press **Escape** to close
 
 ### Quiz Mode
-- Multiple-choice with answers listed vertically; keyboard shortcuts **1–4**, **Enter / →**
+- Multiple-choice with answers listed vertically; all wrong answers defined for a question are shown (no cap). Keyboard shortcuts **1–9** select the corresponding choice; **Enter / →** advances after answering
 - **Live score chip** shows `Correct / Total (%)` in the top bar, updated after every answer
 - **Per-level score badges** appear below the top bar once you start answering; each badge uses the level's colour and shows `LevelName: correct/total (%)`; badges appear in defined level order and are hidden until a question for that level has been answered
 - **Reference text** — if the question has reference text, it always appears in the feedback box on a correct answer; on a wrong answer it only appears when **Show correct answer** is enabled — visually distinguished with a left border
 - Score grid shows ⬜ unanswered / 🟩 correct / 🟥 incorrect per question
 - **↺ Retry Incorrect** re-runs only missed questions in a new round; per-level scores accumulate across all rounds
+- **Round summary** — the quiz complete screen shows each round's score (`X / Y correct`) followed by a row of coloured level-badge chips (e.g. `Easy: 3/4 (75%)`) so you can see which levels needed the most work at a glance
 - **Level filter** — when a deck has levels, choose which to include before starting
 - **Save progress** — signed-in users see a **💾 Save** button in the toolbar; navigating away or using the back arrow prompts to save or discard. Anonymous users are warned progress cannot be saved.
 - **Resume** — returning to Quiz mode with saved progress shows a resume card above the deck list; the deck name is displayed as a header at the top of the card, followed by the round number, progress, and save time; click **Resume** to pick up where you left off (score grid restored) or **Discard** to start fresh.
@@ -193,8 +194,8 @@ Question text settings apply to the flashcard front face and the quiz question c
 ### Users & Reports
 - Add named profiles to track sessions separately; switch users from the nav
 - Reports show every session; filter by user, deck, or mode
-- Each session can be expanded to see a per-round breakdown: round headers show `X/Y (%)` and list every question answered in that round
-- Sessions with level data show a **level score breakdown** at the bottom of the detail (e.g. `Easy: 8/10 (80%)`)
+- Each session can be expanded to see a per-round breakdown: round headers show `X/Y (%)` and list every question answered in that round; if the deck has levels, coloured level-badge chips appear beneath each round header (e.g. `Easy: 8/10 (80%)`)
+- The quiz complete screen shown at the end of each round also displays these per-level chips under each round row
 
 ### Data Backup
 Located at the bottom of the **User Profiles** page.

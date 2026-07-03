@@ -3100,8 +3100,8 @@ Views.quiz = {
     document.getElementById('quiz-feedback').classList.add('hidden');
     document.getElementById('feedback-correct-reveal').classList.add('hidden');
 
-    // build answer choices (correct + up to 3 wrong, shuffled)
-    const wrongs   = shuffle(row.wrongAnswers).slice(0, 3);
+    // build answer choices (correct + all wrong answers, shuffled)
+    const wrongs   = shuffle(row.wrongAnswers);
     let choices  = shuffle([
       { cell: row.correctAnswer, isCorrect: true },
       ...wrongs.map(w => ({ cell: w, isCorrect: false }))
@@ -3124,7 +3124,7 @@ Views.quiz = {
 
     const choicesEl = document.getElementById('quiz-choices');
     choicesEl.innerHTML = '';
-    const letters = ['A', 'B', 'C', 'D', 'E'];
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
     choices.forEach((ch, ci) => {
       const btn = document.createElement('button');
@@ -3214,6 +3214,7 @@ Views.quiz = {
       qId: row.id,
       round: State.qz.round,
       correct: isCorrect,
+      level: row.level || '',
       selectedText: cellLabel(choice.cell),
       questionLabel: cellLabel(row.question),
       correctLabel: cellLabel(row.correctAnswer)
@@ -3242,6 +3243,7 @@ Views.quiz = {
     bdEl.innerHTML = '';
 
     // per-round summary
+    const levels = State.qz.levels || [];
     const roundNums = [...new Set(State.qz.allAttempts.map(a => a.round))].sort((a, b) => a - b);
     roundNums.forEach(rn => {
       const rAttempts = State.qz.allAttempts.filter(a => a.round === rn);
@@ -3251,6 +3253,34 @@ Views.quiz = {
       item.className = 'summary-breakdown-item';
       item.innerHTML = `<span>Round ${rn}</span><span>${rC} / ${rT} correct</span>`;
       bdEl.appendChild(item);
+
+      // per-level breakdown for this round
+      const levelNames = [...new Set(rAttempts.map(a => a.level).filter(Boolean))];
+      levelNames.sort((a, b) => {
+        const ai = levels.findIndex(l => l.name === a);
+        const bi = levels.findIndex(l => l.name === b);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+      if (levelNames.length > 0) {
+        const levelDiv = document.createElement('div');
+        levelDiv.className = 'summary-level-breakdown';
+        levelNames.forEach(name => {
+          const lAttempts = rAttempts.filter(a => a.level === name);
+          const lC = lAttempts.filter(a => a.correct).length;
+          const lT = lAttempts.length;
+          const lPct = lT ? Math.round(lC / lT * 100) : 0;
+          const lvl = levels.find(l => l.name === name);
+          const bg = lvl ? lvl.color : 'var(--clr-border)';
+          const fg = lvl ? contrastColor(lvl.color) : 'var(--clr-text)';
+          const span = document.createElement('span');
+          span.className = 'level-score-chip level-badge';
+          span.style.background = bg;
+          span.style.color = fg;
+          span.textContent = `${name}: ${lC}/${lT} (${lPct}%)`;
+          levelDiv.appendChild(span);
+        });
+        bdEl.appendChild(levelDiv);
+      }
     });
 
     // retry button — only show if auto-retry is enabled and there are wrong answers
