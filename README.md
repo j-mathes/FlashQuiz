@@ -153,13 +153,21 @@ Click **✂ Split** on any deck in the Builder list to open the split panel.
 - Only levels that are actually used by the selected questions are carried into the new deck
 
 #### ⊕ Combine Decks
-Click **⊕ Combine** in the Builder header to merge two or more decks into one new deck. The flow has up to three steps:
+Click **⊕ Combine** in the Builder header to merge two or more decks into one new deck. The flow has up to four steps (some are skipped when not needed):
 
-**Step 1 — Select Decks:** Check two or more decks from the list; Next → is disabled until at least two are selected.
+**Select Decks:** Check two or more decks from the list; Next → is disabled until at least two are selected.
 
-**Step 2 — Resolve Level Conflicts** *(only shown when needed)*: If the same level name exists in multiple decks with different colours, each conflict is listed with a radio button per deck so you can choose which colour to keep. This step is skipped when all shared level names already agree on colour.
+**Level Conflicts** *(skipped if none)*: If the same level name exists in multiple decks with different colours, each conflict is listed with a radio button per deck so you can choose which colour to keep.
 
-**Step 3 — Save:** Shows a summary of the decks being merged, total question count, and the final level badges. Enter a **New deck name** (pre-filled as `"Deck A + Deck B"`), then **💾 Save as New Deck** or **⬇ Export**.
+**Duplicate Questions** *(skipped if none)*: Questions with matching text are detected across all selected decks and grouped by type:
+
+| Type | Default | Options |
+|---|---|---|
+| **🔁 Exact Duplicate** — same question, answers, and level | Keep one copy (auto-deduplicated) | Keep one · Keep all · Exclude all |
+| **⚠ Same Question – Different Levels** — matching question, levels differ | Treated as **separate questions** (both kept) | Toggle "Treat as duplicate" → choose which deck's version to keep, or exclude both |
+| **⚠ Same Question – Different Answers** — same question and level, answers differ | Keep all versions | Per-entry checkboxes to include or exclude each deck's version |
+
+**Save:** Shows the decks being merged, the final question count after duplicate resolutions, a "N duplicate group(s) resolved" note (if any), and the merged level badges. Enter a **New deck name** (pre-filled as `"Deck A + Deck B"`), then **💾 Save as New Deck** or **⬇ Export**.
 
 ### Image Library
 - Upload images once (up to 5 MB each) from the **Data** page; stored in IndexedDB

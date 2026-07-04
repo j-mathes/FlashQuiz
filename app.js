@@ -3010,6 +3010,7 @@ Views.builder.combine = {
       loadedDecks:    [],
       levelColors:    new Map(),
       conflicts:      [],
+      duplicates:     [],
       resolvedColors: new Map()
     };
     document.getElementById('builder-deck-list').classList.add('hidden');
@@ -3025,6 +3026,71 @@ Views.builder.combine = {
     Views.builder.renderDeckList();
   },
 
+  // ── Helpers ─────────────────────────────────────────────
+
+  _detectDups(decks) {
+    const qMap = new Map(); // normalized question text → entries
+    decks.forEach(d => {
+      (d.rows || []).forEach(r => {
+        const key = cellLabel(r.question).trim().toLowerCase();
+        if (!key) return;
+        if (!qMap.has(key)) qMap.set(key, []);
+        qMap.get(key).push({ row: r, deckName: d.name });
+      });
+    });
+    const dups = [];
+    for (const [, entries] of qMap) {
+      if (entries.length < 2) continue;
+      const ansKey = e =>
+        [cellLabel(e.row.correctAnswer), ...(e.row.wrongAnswers || []).map(w => cellLabel(w))]
+          .map(s => s.trim().toLowerCase()).sort().join('|||');
+      const allSameAnswers = entries.every(e => ansKey(e) === ansKey(entries[0]));
+      const levels         = entries.map(e => e.row.level || '');
+      const allSameLevels  = levels.every(l => l === levels[0]);
+      const idxAll = new Set(entries.map((_, i) => i));
+      let type, treatAsDuplicate, keepIndices;
+      if (!allSameLevels) {
+        // Different levels → treated as separate questions by default
+        type = 'diff-levels'; treatAsDuplicate = false; keepIndices = new Set(idxAll);
+      } else if (allSameAnswers) {
+        // Identical in every way
+        type = 'exact'; treatAsDuplicate = true; keepIndices = new Set([0]);
+      } else {
+        // Same question text, same level, different answers
+        type = 'diff-answers'; treatAsDuplicate = true; keepIndices = new Set(idxAll);
+      }
+      dups.push({ questionLabel: cellLabel(entries[0].row.question),
+        entries, type, treatAsDuplicate, keepIndices, allSameAnswers, allSameLevels });
+    }
+    return dups;
+  },
+
+  _lvBadge(levelName) {
+    if (!levelName) return '';
+    const lv = (State.bld.cm.loadedDecks || []).flatMap(d => d.levels || []).find(l => l.name === levelName);
+    const bg = lv ? esc(lv.color) : 'var(--clr-border)';
+    const fg = lv ? contrastColor(lv.color) : 'var(--clr-text-muted)';
+    return `<span class="level-badge" style="background:${bg};color:${fg}">${esc(levelName)}</span>`;
+  },
+
+  // ── Step navigation helpers ─────────────────────────────
+
+  _goForwardFrom(step) {
+    const { conflicts, duplicates } = State.bld.cm;
+    if (step < 2 && conflicts.length)  return Views.builder.combine.renderStep2();
+    if (step < 3 && duplicates.length) return Views.builder.combine.renderStep3();
+    Views.builder.combine.renderStep4();
+  },
+
+  _goBackFrom(step) {
+    const { conflicts, duplicates } = State.bld.cm;
+    if (step > 3 && duplicates.length)  return Views.builder.combine.renderStep3();
+    if (step > 2 && conflicts.length)   return Views.builder.combine.renderStep2();
+    Views.builder.combine.renderStep1();
+  },
+
+  // ── Step 1: Select Decks ────────────────────────────────
+
   renderStep1() {
     const panel = document.getElementById('builder-combine');
     const metas = Storage.getDatasetMetas();
@@ -3034,7 +3100,350 @@ Views.builder.combine = {
       <div class="sc-header card">
         <div class="sc-title-row">
           <button id="btn-cm-back-1" class="btn btn-ghost">\u2190 Back</button>
-          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Step 1 of 3: Select Decks</span></h3>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Select Decks</span></h3>
+        </div>
+        <p class="sc-sub">Select two or more decks to merge into a new deck.</p>
+      </div>
+      <div class="sc-list sc-deck-list" id="cm-deck-list">
+        ${!metas.length
+          ? `<div class="empty-state"><p>No decks available.</p></div>`
+          : metas.map(m => `
+            <label class="sc-deck-item${sel.has(m.id) ? ' sc-q-sel' : ''}" data-id="${esc(m.id)}">
+              <input type="checkbox" class="cm-deck-cb" data-id="${esc(m.id)}" ${sel.has(m.id) ? 'checked' : ''}>
+              <span class="sc-deck-name">${esc(m.name)}</span>
+              <span class="sc-deck-meta">${m.rowCount} question${m.rowCount !== 1 ? 's' : ''} \u00b7 ${fmtDate(m.createdAt)}</span>
+            </label>`).join('')
+        }
+      </div>
+      <div class="sc-footer card">
+        <button id="btn-cm-next-1" class="btn btn-primary" ${sel.size < 2 ? 'disabled' : ''}>Next \u2192</button>
+      </div>`;
+
+    document.getElementById('btn-cm-back-1').addEventListener('click', () => Views.builder.combine.close());
+    panel.querySelectorAll('.cm-deck-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const newSel = new Set();
+        panel.querySelectorAll('.cm-deck-cb:checked').forEach(c => newSel.add(c.dataset.id));
+        State.bld.cm.selectedIds = newSel;
+        document.getElementById('btn-cm-next-1').disabled = newSel.size < 2;
+        panel.querySelectorAll('.sc-deck-item').forEach(item => {
+          item.classList.toggle('sc-q-sel', newSel.has(item.dataset.id));
+        });
+      });
+    });
+
+    document.getElementById('btn-cm-next-1').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-cm-next-1');
+      btn.disabled = true; btn.textContent = 'Loading\u2026';
+      const ids   = [...State.bld.cm.selectedIds];
+      const decks = (await Promise.all(ids.map(id => Storage.getDataset(id)))).filter(Boolean);
+      State.bld.cm.loadedDecks = decks;
+
+      // Detect level conflicts
+      const levelColors = new Map();
+      decks.forEach(d => {
+        (d.levels || []).forEach(l => {
+          if (!levelColors.has(l.name)) levelColors.set(l.name, []);
+          const existing = levelColors.get(l.name);
+          if (!existing.some(e => e.color === l.color)) existing.push({ color: l.color, deckName: d.name });
+        });
+      });
+      State.bld.cm.levelColors = levelColors;
+      const conflicts = [];
+      for (const [name, entries] of levelColors) {
+        if (entries.length > 1) conflicts.push({ name, entries });
+      }
+      State.bld.cm.conflicts = conflicts;
+      State.bld.cm.resolvedColors = new Map();
+      for (const [name, entries] of levelColors) {
+        State.bld.cm.resolvedColors.set(name, entries[0].color);
+      }
+
+      // Detect duplicate questions
+      State.bld.cm.duplicates = Views.builder.combine._detectDups(decks);
+
+      Views.builder.combine._goForwardFrom(1);
+    });
+  },
+
+  // ── Step 2: Level Conflicts ─────────────────────────────
+
+  renderStep2() {
+    const panel     = document.getElementById('builder-combine');
+    const conflicts = State.bld.cm.conflicts;
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-2" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Level Conflicts</span></h3>
+        </div>
+        <p class="sc-sub">These level names appear in multiple decks with different colors. Choose which color to keep in the combined deck.</p>
+      </div>
+      <div class="sc-list sc-conflicts-list">
+        ${conflicts.map((c, ci) => `
+          <div class="sc-conflict card">
+            <div class="sc-conflict-name">Level: <strong>${esc(c.name)}</strong></div>
+            ${c.entries.map((e, ei) => `
+              <label class="sc-conflict-opt">
+                <input type="radio" name="cm-conflict-${ci}" value="${esc(e.color)}" ${ei === 0 ? 'checked' : ''}>
+                <span class="level-badge" style="background:${esc(e.color)};color:${contrastColor(e.color)}">${esc(c.name)}</span>
+                <span class="sc-conflict-src">from <em>${esc(e.deckName)}</em></span>
+              </label>`).join('')}
+          </div>`).join('')}
+      </div>
+      <div class="sc-footer card">
+        <button id="btn-cm-next-2" class="btn btn-primary">Next \u2192</button>
+      </div>`;
+
+    document.getElementById('btn-cm-back-2').addEventListener('click', () => Views.builder.combine.renderStep1());
+    document.getElementById('btn-cm-next-2').addEventListener('click', () => {
+      conflicts.forEach((c, ci) => {
+        const checked = panel.querySelector(`input[name="cm-conflict-${ci}"]:checked`);
+        if (checked) State.bld.cm.resolvedColors.set(c.name, checked.value);
+      });
+      Views.builder.combine._goForwardFrom(2);
+    });
+  },
+
+  // ── Step 3: Duplicate Questions ─────────────────────────
+
+  renderStep3() {
+    const panel      = document.getElementById('builder-combine');
+    const duplicates = State.bld.cm.duplicates;
+
+    const dupHtml = duplicates.map((dup, di) => {
+      const typeInfo = {
+        'exact':       { label: '\ud83d\udd01 Exact Duplicate',                  hint: 'cls-dup-exact' },
+        'diff-levels': { label: '\u26a0\ufe0f Same Question \u2013 Different Levels',   hint: 'sc-dup-warn' },
+        'diff-answers':{ label: '\u26a0\ufe0f Same Question \u2013 Different Answers',  hint: 'sc-dup-warn' }
+      }[dup.type];
+
+      const entriesHtml = dup.entries.map(e => {
+        const correctTxt = cellLabel(e.row.correctAnswer);
+        const wrongTxts  = (e.row.wrongAnswers || []).map(w => cellLabel(w)).filter(Boolean);
+        return `<div class="sc-dup-entry">
+          <span class="sc-dup-deck">${esc(e.deckName)}</span>
+          ${Views.builder.combine._lvBadge(e.row.level)}
+          <span class="sc-dup-ans">Correct: ${esc(correctTxt)}${wrongTxts.length ? ` &nbsp;·&nbsp; Wrong: ${esc(wrongTxts.join(', '))}` : ''}</span>
+        </div>`;
+      }).join('');
+
+      let resHtml = '';
+      if (dup.type === 'exact') {
+        const isKeepOne = dup.keepIndices.size === 1;
+        const isKeepAll = dup.keepIndices.size === dup.entries.length;
+        resHtml = `
+          <div class="sc-dup-res">
+            <label class="sc-dup-opt"><input type="radio" name="dup-${di}" value="keep-one" ${isKeepOne ? 'checked' : ''}> Keep one copy <span class="sc-dup-note">(auto-deduplicated)</span></label>
+            <label class="sc-dup-opt"><input type="radio" name="dup-${di}" value="keep-all" ${isKeepAll ? 'checked' : ''}> Keep all copies</label>
+            <label class="sc-dup-opt"><input type="radio" name="dup-${di}" value="exclude"  ${!isKeepOne && !isKeepAll ? 'checked' : ''}> Exclude from combined deck</label>
+          </div>`;
+      } else if (dup.type === 'diff-levels') {
+        const isTreated = dup.treatAsDuplicate;
+        const keepIdx   = isTreated ? ([...dup.keepIndices][0] ?? 0) : -1;
+        resHtml = `
+          <div class="sc-dup-res">
+            <p class="sc-dup-note">Treated as separate questions (different levels) — both will be included.</p>
+            <label class="sc-dup-opt"><input type="checkbox" class="cm-treat-as-dup" data-di="${di}" ${isTreated ? 'checked' : ''}> Treat as duplicate</label>
+            ${isTreated ? `
+              <div class="sc-dup-keep-which">
+                ${dup.entries.map((e, ei) => `
+                  <label class="sc-dup-opt"><input type="radio" name="dup-keep-${di}" value="${ei}" ${keepIdx === ei ? 'checked' : ''}> Keep ${esc(e.deckName)}\u2019s version ${Views.builder.combine._lvBadge(e.row.level)}</label>`).join('')}
+                <label class="sc-dup-opt"><input type="radio" name="dup-keep-${di}" value="x" ${keepIdx === -2 ? 'checked' : ''}> Exclude from combined deck</label>
+              </div>` : ''}
+          </div>`;
+      } else { // diff-answers
+        resHtml = `
+          <div class="sc-dup-res">
+            <p class="sc-dup-note">Which version(s) to include?</p>
+            ${dup.entries.map((e, ei) => `
+              <label class="sc-dup-opt"><input type="checkbox" class="cm-dup-keep" data-di="${di}" data-ei="${ei}" ${dup.keepIndices.has(ei) ? 'checked' : ''}> Include ${esc(e.deckName)}\u2019s version ${Views.builder.combine._lvBadge(e.row.level)}</label>`).join('')}
+          </div>`;
+      }
+
+      return `<div class="sc-dup-item card">
+        <div class="sc-dup-type ${typeInfo.hint}">${typeInfo.label}</div>
+        <div class="sc-dup-question">${esc(dup.questionLabel)}</div>
+        ${dup.allSameAnswers && dup.allSameLevels ? '<p class="sc-dup-note">All instances have identical answers.</p>' : ''}
+        ${entriesHtml}
+        ${resHtml}
+      </div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-3" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Duplicate Questions</span></h3>
+        </div>
+        <p class="sc-sub">${duplicates.length} duplicate question group${duplicates.length !== 1 ? 's' : ''} found. Review each and choose how to resolve it.</p>
+      </div>
+      <div class="sc-list sc-dup-list">${dupHtml}</div>
+      <div class="sc-footer card">
+        <button id="btn-cm-next-3" class="btn btn-primary">Next \u2192</button>
+      </div>`;
+
+    document.getElementById('btn-cm-back-3').addEventListener('click', () =>
+      Views.builder.combine._goBackFrom(3)
+    );
+
+    // Exact duplicate radios
+    panel.querySelectorAll('[name^="dup-"]:not([name^="dup-keep-"])').forEach(r => {
+      r.addEventListener('change', e => {
+        const di  = parseInt(e.target.name.replace('dup-', ''), 10);
+        const dup = State.bld.cm.duplicates[di];
+        if (e.target.value === 'keep-one') dup.keepIndices = new Set([0]);
+        else if (e.target.value === 'keep-all') dup.keepIndices = new Set(dup.entries.map((_, i) => i));
+        else dup.keepIndices = new Set();
+      });
+    });
+
+    // "Treat as duplicate" checkboxes (diff-levels)
+    panel.querySelectorAll('.cm-treat-as-dup').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const di  = parseInt(e.target.dataset.di, 10);
+        const dup = State.bld.cm.duplicates[di];
+        dup.treatAsDuplicate = e.target.checked;
+        dup.keepIndices = e.target.checked
+          ? new Set([0])
+          : new Set(dup.entries.map((_, i) => i));
+        Views.builder.combine.renderStep3();
+      });
+    });
+
+    // Keep-which radios (diff-levels treated-as-dup)
+    panel.querySelectorAll('[name^="dup-keep-"]').forEach(r => {
+      r.addEventListener('change', e => {
+        const di  = parseInt(e.target.name.replace('dup-keep-', ''), 10);
+        const dup = State.bld.cm.duplicates[di];
+        dup.keepIndices = e.target.value === 'x' ? new Set() : new Set([parseInt(e.target.value, 10)]);
+      });
+    });
+
+    // Per-entry checkboxes (diff-answers)
+    panel.querySelectorAll('.cm-dup-keep').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const di  = parseInt(e.target.dataset.di, 10);
+        const ei  = parseInt(e.target.dataset.ei, 10);
+        const dup = State.bld.cm.duplicates[di];
+        if (e.target.checked) dup.keepIndices.add(ei);
+        else dup.keepIndices.delete(ei);
+      });
+    });
+
+    document.getElementById('btn-cm-next-3').addEventListener('click', () =>
+      Views.builder.combine.renderStep4()
+    );
+  },
+
+  // ── Step 4: Save ────────────────────────────────────────
+
+  renderStep4() {
+    const panel  = document.getElementById('builder-combine');
+    const { loadedDecks, levelColors, resolvedColors, duplicates } = State.bld.cm;
+
+    // Calculate final question count after dup resolution
+    const excludedIds = new Set();
+    duplicates.forEach(dup => {
+      dup.entries.forEach((entry, i) => {
+        if (!dup.keepIndices.has(i)) excludedIds.add(entry.row.id);
+      });
+    });
+    const totalQ = loadedDecks.reduce((s, d) =>
+      s + d.rows.filter(r => !excludedIds.has(r.id)).length, 0);
+
+    const levelHtml = [...levelColors].map(([name]) => {
+      const color = resolvedColors.get(name) || '#999';
+      return `<span class="level-badge" style="background:${esc(color)};color:${contrastColor(color)}">${esc(name)}</span>`;
+    }).join(' ');
+    const suggested = loadedDecks.map(d => d.name).join(' + ');
+
+    const dupSummary = duplicates.length
+      ? `<p class="sc-dup-note" style="margin:.1rem 0">${duplicates.length} duplicate group${duplicates.length !== 1 ? 's' : ''} resolved</p>`
+      : '';
+
+    panel.innerHTML = `
+      <div class="sc-header card">
+        <div class="sc-title-row">
+          <button id="btn-cm-back-4" class="btn btn-ghost">\u2190 Back</button>
+          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Save</span></h3>
+        </div>
+      </div>
+      <div class="sc-footer card" style="gap:1rem">
+        <div class="sc-combine-summary">
+          <p>Merging <strong>${loadedDecks.length}</strong> deck${loadedDecks.length !== 1 ? 's' : ''}:</p>
+          <ul class="sc-combine-deck-names">${loadedDecks.map(d => `<li>${esc(d.name)}</li>`).join('')}</ul>
+          <p class="sc-combine-total"><strong>${totalQ}</strong> question${totalQ !== 1 ? 's' : ''} after resolution</p>
+          ${dupSummary}
+          ${levelHtml ? `<div class="sc-combine-levels">${levelHtml}</div>` : ''}
+        </div>
+        <div class="sc-name-row">
+          <label class="sc-label">New deck name</label>
+          <input type="text" id="cm-name-input" class="deck-name-input sc-name-input"
+            placeholder="Combined Deck" maxlength="80" value="${esc(suggested)}">
+        </div>
+        <div class="sc-save-row">
+          <button id="btn-cm-save"   class="btn btn-success">\ud83d\udcbe Save as New Deck</button>
+          <button id="btn-cm-export" class="btn btn-secondary">\u2b07 Export</button>
+        </div>
+      </div>`;
+
+    document.getElementById('btn-cm-back-4').addEventListener('click', () =>
+      Views.builder.combine._goBackFrom(4)
+    );
+    document.getElementById('btn-cm-save').addEventListener('click',   () => Views.builder.combine.saveAsDeck());
+    document.getElementById('btn-cm-export').addEventListener('click', () => Views.builder.combine.exportCombined());
+  },
+
+  // ── Build & save ────────────────────────────────────────
+
+  _buildDs() {
+    const { loadedDecks, levelColors, resolvedColors, duplicates } = State.bld.cm;
+    const name = document.getElementById('cm-name-input')?.value.trim() || 'Combined Deck';
+
+    // Determine which rows to exclude based on duplicate resolutions
+    const excludedIds = new Set();
+    (duplicates || []).forEach(dup => {
+      dup.entries.forEach((entry, i) => {
+        if (!dup.keepIndices.has(i)) excludedIds.add(entry.row.id);
+      });
+    });
+
+    const levels = [...levelColors].map(([lname]) => ({
+      name:  lname,
+      color: resolvedColors.get(lname) || LEVEL_COLORS[0]
+    }));
+    const rows = loadedDecks.flatMap(d =>
+      d.rows.filter(r => !excludedIds.has(r.id)).map(r => ({ ...r, id: genId() }))
+    );
+    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows };
+  },
+
+  saveAsDeck() {
+    const newDs = Views.builder.combine._buildDs();
+    Modal.confirm(
+      'Save Combined Deck',
+      `Save ${newDs.rows.length} question${newDs.rows.length !== 1 ? 's' : ''} as \u201c${newDs.name}\u201d?`,
+      async () => {
+        await Storage.saveDataset(newDs);
+        Toast.show(`Saved \u201c${newDs.name}\u201d (${newDs.rows.length} questions)`, 'success');
+        Views.builder.combine.close();
+      },
+      'Save', 'btn-success'
+    );
+  },
+
+  exportCombined() {
+    const saved = State.bld.draft;
+    State.bld.draft = Views.builder.combine._buildDs();
+    Views.builder.showExportDialog();
+    setTimeout(() => { State.bld.draft = saved; }, 100);
+  }
+};
+
+// ============================================================
+// VIEW: FLASHCARDS
         </div>
         <p class="sc-sub">Select two or more decks to merge into a new deck.</p>
       </div>
@@ -3106,15 +3515,8 @@ Views.builder.combine = {
     });
   },
 
-  renderStep2() {
-    const panel     = document.getElementById('builder-combine');
-    const conflicts = State.bld.cm.conflicts;
-
-    panel.innerHTML = `
-      <div class="sc-header card">
-        <div class="sc-title-row">
-          <button id="btn-cm-back-2" class="btn btn-ghost">\u2190 Back</button>
-          <h3 class="sc-title">\u2295 Combine Decks <span class="sc-step">Step 2 of 3: Resolve Level Conflicts</span></h3>
+// ============================================================
+// VIEW: FLASHCARDS
         </div>
         <p class="sc-sub">These level names appear in multiple decks with different colors. Choose which color to keep in the combined deck.</p>
       </div>
