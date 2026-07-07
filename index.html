@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Flashcard and quiz app — master any subject with smart study tools.">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>FlashQuiz</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -686,6 +692,7 @@
 
       </div>
       <button id="btn-settings-reset" class="btn btn-ghost mt-2">↺ Reset to Defaults</button>
+      <p id="appVersionLine" style="font-size:0.78rem;color:var(--clr-text-muted);margin-top:0.5rem"></p>
     </section>
 
     <!-- ── REPORTS ────────────────────────────────────────── -->

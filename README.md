@@ -14,6 +14,48 @@ A browser-based flashcard and quiz app. No server, no build step, no frameworks 
 
 ---
 
+## Installing as an App (PWA)
+
+FlashQuiz is a Progressive Web App — it can be installed on your device for a full-screen, offline-capable experience with no browser chrome.
+
+### iOS (iPhone / iPad)
+
+**Safari** is the primary method. **Chrome and Edge on iOS 17+** also support installation via their Share button.
+
+**Safari:**
+1. Open **Safari** and navigate to the hosted link above
+2. Tap the **Share** button (⎙) in the toolbar
+3. Scroll down and tap **"Add to Home Screen"**
+4. Edit the name if desired → tap **Add**
+5. **iOS 17.4+:** when prompted, choose **"As Web App"** (not "In Safari")
+
+**Chrome or Edge (iOS 17+):**
+1. Open **Chrome** or **Edge** and navigate to the hosted link
+2. Tap the **Share** button (⎙) in the URL bar
+3. Tap **"Add to Home Screen"** → **Add**
+
+The app icon will appear on your home screen. Opening from there launches it full-screen (no browser UI) and works offline after the first load.
+
+### Android
+
+1. Open **Chrome** and navigate to the hosted link
+2. Tap the **⋮** menu → **"Add to Home Screen"** (or tap the install banner if it appears)
+3. Tap **Add**
+
+### Desktop (Chrome / Edge)
+
+1. Navigate to the hosted link
+2. Click the **install icon** (⊕) in the address bar, or open the browser menu → **"Install FlashQuiz"**
+3. Click **Install**
+
+The app opens in its own window without browser chrome, and can be launched from the taskbar or app launcher.
+
+### App Version
+
+The installed cache version is shown at the bottom of the **Settings** page (`Version x.x.x · cache: flashquiz-vN`). If the displayed cache name does not match the current release, close and reopen the app to trigger a background refresh, then reload once more.
+
+---
+
 ## Data Format
 
 Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **⬇ Sample CSV** or **⬇ Sample Excel** on the Data page to download a working example.

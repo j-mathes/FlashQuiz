@@ -4272,6 +4272,18 @@ Views.settings = {
         btn.classList.toggle('active', btn.dataset.value === String(prefs[key]));
       });
     });
+
+    // About: show app version and active SW cache name
+    const verLine = document.getElementById('appVersionLine');
+    if (verLine) {
+      if ('caches' in window) {
+        caches.keys().then(function (keys) {
+          verLine.textContent = 'Version ' + APP_VERSION + '  \u00B7  cache: ' + (keys.length ? keys.join(', ') : 'none');
+        });
+      } else {
+        verLine.textContent = 'Version ' + APP_VERSION;
+      }
+    }
   },
 };
 
@@ -4670,4 +4682,11 @@ async function init() {
   Router.navigate('home');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function () {
+  init();
+  // Register service worker for PWA offline support
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(function () { /* SW unavailable — app still works fine */ });
+  }
+});
