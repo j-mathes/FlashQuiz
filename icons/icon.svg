@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Dark background with rounded corners -->
-  <rect width="512" height="512" rx="80" fill="#1e293b"/>
+  <!-- Black background with rounded corners -->
+  <rect width="512" height="512" rx="80" fill="#000000"/>
 
-  <!-- Rear flashcard tilted slightly -->
-  <rect x="134" y="152" width="248" height="196" rx="18"
-        fill="#334155" transform="rotate(-7, 258, 250)"/>
+  <!-- Large Q letter -->
+  <text x="256" y="362"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="300"
+        font-weight="bold"
+        fill="white"
+        text-anchor="middle">Q</text>
 
-  <!-- Front flashcard -->
-  <rect x="128" y="160" width="256" height="196" rx="18" fill="#f1f5f9"/>
-
-  <!-- Subtle ruled lines on front card (suggesting content) -->
-  <rect x="152" y="300" width="120" height="8" rx="4" fill="#cbd5e1"/>
-  <rect x="152" y="316" width="88"  height="8" rx="4" fill="#cbd5e1"/>
-
-  <!-- Lightning bolt -->
-  <path d="M282,188 L238,268 L265,268 L230,332 L278,250 L254,250 Z" fill="#f59e0b"/>
+  <!-- Lightning bolt overlaid on Q (same baseline/size as Q) -->
+  <text x="256" y="392"
+        font-family="'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif"
+        font-size="375"
+        text-anchor="middle"
+        fill="#f59e0b">⚡</text>
 </svg>
