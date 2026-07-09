@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '2.0.0';
+const APP_VERSION  = '3.0.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -755,6 +755,7 @@ const Lightbox = {
     const img = document.getElementById('img-lightbox-img');
     img.src = src;
     img.alt = alt || '';
+    img.style.transform = '';
     lb.classList.remove('hidden');
   },
   hide() {
@@ -762,6 +763,7 @@ const Lightbox = {
     const img = document.getElementById('img-lightbox-img');
     lb.classList.add('hidden');
     img.src = '';
+    img.style.transform = '';
   }
 };
 
@@ -4324,6 +4326,49 @@ function wireEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !document.getElementById('img-lightbox').classList.contains('hidden')) Lightbox.hide();
   });
+
+  // ── Lightbox pinch-to-zoom ──
+  (function () {
+    const lbImg = document.getElementById('img-lightbox-img');
+    let initialDist = 0;
+    let originScale = 1;
+    let currentScale = 1;
+
+    function getTouchDist(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    lbImg.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        initialDist = getTouchDist(e.touches[0], e.touches[1]);
+        originScale = currentScale;
+      }
+    }, { passive: false });
+
+    lbImg.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const ratio = getTouchDist(e.touches[0], e.touches[1]) / initialDist;
+        currentScale = Math.min(Math.max(originScale * ratio, 1), 5);
+        lbImg.style.transform = `scale(${currentScale})`;
+      }
+    }, { passive: false });
+
+    lbImg.addEventListener('touchend', () => {
+      if (currentScale < 1.05) {
+        currentScale = 1;
+        lbImg.style.transform = '';
+      }
+    });
+
+    // Reset scale state whenever the lightbox is opened
+    document.getElementById('img-lightbox').addEventListener('transitionend', () => {
+      if (document.getElementById('img-lightbox').classList.contains('hidden')) {
+        currentScale = 1;
+      }
+    });
+  }());
 
   // ── Users view ──
   document.getElementById('btn-add-user').addEventListener('click', () => {

@@ -1197,6 +1197,7 @@ select { cursor: pointer; }
   z-index: 300;
   padding: 1rem;
   cursor: zoom-out;
+  overflow: hidden;
 }
 .img-lightbox.hidden { display: none; }
 .img-lightbox img {
@@ -1207,6 +1208,9 @@ select { cursor: pointer; }
   box-shadow: 0 8px 40px rgba(0,0,0,.6);
   cursor: default;
   display: block;
+  touch-action: none;
+  transform-origin: center center;
+  transition: transform 0.05s linear;
 }
 .img-lightbox-close {
   position: absolute;

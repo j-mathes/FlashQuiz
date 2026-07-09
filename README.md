@@ -99,7 +99,7 @@ The first row must be a header row beginning with `Level` for the app to use thi
 - Shuffled each session; restart anytime with **↺ Restart**
 - **Level filter** — when a deck has levels, choose which to study before starting
 - **Reference text** — if the question has reference text, it appears at the bottom of the card back, below the answer, separated by a subtle divider
-- **Image zoom** — any image on the front or back of a card has a small expand button (⛶) in its corner; tap or click it to open a full-screen lightbox; tap the background, press ✕, or press **Escape** to close
+- **Image zoom** — any image on the front or back of a card has a small expand button (⛶) in its corner; tap or click it to open a full-screen lightbox; **pinch to zoom** in and out on the image; tap the background, press ✕, or press **Escape** to close
 
 ### Quiz Mode
 - Multiple-choice with answers listed vertically; all wrong answers defined for a question are shown (no cap). Keyboard shortcuts **1–9** select the corresponding choice; **Enter / →** advances after answering
@@ -112,7 +112,7 @@ The first row must be a header row beginning with `Level` for the app to use thi
 - **Level filter** — when a deck has levels, choose which to include before starting
 - **Save progress** — signed-in users see a **💾 Save** button in the toolbar; navigating away or using the back arrow prompts to save or discard. Anonymous users are warned progress cannot be saved.
 - **Resume** — returning to Quiz mode with saved progress shows a resume card above the deck list; the deck name is displayed as a header at the top of the card, followed by the round number, progress, and save time; click **Resume** to pick up where you left off (score grid restored) or **Discard** to start fresh.
-- **Image zoom** — any image in a question or answer choice has a small expand button (⛶) in its corner; tap or click it to open a full-screen lightbox without selecting that answer choice; tap the background, press ✕, or press **Escape** to close
+- **Image zoom** — any image in a question or answer choice has a small expand button (⛶) in its corner; tap or click it to open a full-screen lightbox without selecting that answer choice; **pinch to zoom** in and out on the image; tap the background, press ✕, or press **Escape** to close
 
 ### Quiz Builder
 
