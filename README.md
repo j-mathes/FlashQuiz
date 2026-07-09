@@ -52,7 +52,9 @@ The app opens in its own window without browser chrome, and can be launched from
 
 ### App Version
 
-The installed cache version is shown at the bottom of the **Settings** page (`Version x.x.x · cache: flashquiz-vN`). If the displayed cache name does not match the current release, close and reopen the app to trigger a background refresh, then reload once more.
+The installed cache version is shown at the bottom of the **Settings** page (`Version x.x.x · cache: flashquiz-vN`).
+
+When a new version is deployed, the app detects it automatically in the background. An **"Update available"** toast appears with a **↺ Reload** button — tap it to instantly load the latest version. Dismiss the toast to stay on the current version until the next open. If no toast appears, the app is already up to date.
 
 ---
 

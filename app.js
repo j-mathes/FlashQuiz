@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '3.0.0';
+const APP_VERSION  = '4.0.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -4732,6 +4732,44 @@ document.addEventListener('DOMContentLoaded', function () {
   // Register service worker for PWA offline support
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
+      .then(function (reg) {
+        reg.addEventListener('updatefound', function () {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', function () {
+            // Only notify on updates (not the very first install)
+            if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+              const c = document.getElementById('toast-container');
+              const t = document.createElement('div');
+              t.className = 'toast toast-info toast-persistent';
+
+              const text = document.createElement('span');
+              text.className = 'toast-text';
+              text.textContent = 'Update available';
+
+              const reload = document.createElement('button');
+              reload.className = 'toast-btn';
+              reload.title = 'Reload to apply update';
+              reload.textContent = '↺ Reload';
+              reload.addEventListener('click', () => window.location.reload());
+
+              const dismiss = document.createElement('button');
+              dismiss.className = 'toast-btn';
+              dismiss.title = 'Dismiss';
+              dismiss.textContent = '✕';
+              dismiss.addEventListener('click', () => {
+                t.classList.remove('toast-visible');
+                t.addEventListener('transitionend', () => t.remove(), { once: true });
+              });
+
+              t.appendChild(text);
+              t.appendChild(reload);
+              t.appendChild(dismiss);
+              c.appendChild(t);
+              requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('toast-visible')));
+            }
+          });
+        });
+      })
       .catch(function () { /* SW unavailable — app still works fine */ });
   }
 });
