@@ -1210,7 +1210,6 @@ select { cursor: pointer; }
   display: block;
   touch-action: none;
   transform-origin: center center;
-  transition: transform 0.05s linear;
 }
 .img-lightbox-close {
   position: absolute;

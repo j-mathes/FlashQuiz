@@ -462,7 +462,7 @@ async function exportBundle(ds, filename, bundleFmt = 'csv') {
     const xlsxRows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
       if (hasLevels) {
-        cells.unshift(r.reference || '');
+        cells.unshift(typeof r.reference === 'string' ? (r.reference || '') : toCell(r.reference));
         cells.unshift(r.level || '');
       }
       return cells;
@@ -750,12 +750,13 @@ const Modal = {
 // LIGHTBOX
 // ============================================================
 const Lightbox = {
+  _resetZoom: null,   // set by the pan/zoom handler below
   show(src, alt) {
     const lb  = document.getElementById('img-lightbox');
     const img = document.getElementById('img-lightbox-img');
+    if (Lightbox._resetZoom) Lightbox._resetZoom();
     img.src = src;
     img.alt = alt || '';
-    img.style.transform = '';
     lb.classList.remove('hidden');
   },
   hide() {
@@ -763,7 +764,7 @@ const Lightbox = {
     const img = document.getElementById('img-lightbox-img');
     lb.classList.add('hidden');
     img.src = '';
-    img.style.transform = '';
+    if (Lightbox._resetZoom) Lightbox._resetZoom();
   }
 };
 
@@ -808,7 +809,7 @@ const FileParser = {
         const c = parseCell(raw[i]);
         if (c) wrong.push(c);
       }
-      const reference = refColIdx >= 0 ? String(raw[refColIdx] || '').trim() : '';
+      const reference = refColIdx >= 0 ? (parseCell(String(raw[refColIdx] || '').trim()) || null) : null;
       if (levelName && !levelMap.has(levelName)) {
         levelMap.set(levelName, LEVEL_COLORS[levelMap.size % LEVEL_COLORS.length]);
       }
@@ -920,7 +921,7 @@ const DataExport = {
     const rows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
       if (hasLevels) {
-        cells.unshift(r.reference || ''); // reference before question
+        cells.unshift(typeof r.reference === 'string' ? (r.reference || '') : toCell(r.reference)); // reference before question
         cells.unshift(r.level || '');     // level before reference
       }
       return cells;
@@ -945,7 +946,7 @@ const DataExport = {
     const rows = ds.rows.map(r => {
       const cells = [toCell(r.question), toCell(r.correctAnswer), ...r.wrongAnswers.map(toCell)];
       if (hasLevels) {
-        cells.unshift(r.reference || ''); // reference before question
+        cells.unshift(typeof r.reference === 'string' ? (r.reference || '') : toCell(r.reference)); // reference before question
         cells.unshift(r.level || '');     // level before reference
       }
       return cells;
@@ -1161,7 +1162,10 @@ async function resolveLocalImages(rows) {
     ...r,
     question:      await resolveCellImg(r.question),
     correctAnswer: await resolveCellImg(r.correctAnswer),
-    wrongAnswers:  await Promise.all(r.wrongAnswers.map(resolveCellImg))
+    wrongAnswers:  await Promise.all(r.wrongAnswers.map(resolveCellImg)),
+    referenceCell: await resolveCellImg(
+      typeof r.reference === 'string' ? parseCell(r.reference || '') : (r.reference || null)
+    )
   })));
 }
 
@@ -2019,7 +2023,11 @@ Views.builder = {
       levelPickerHtml = `<div class="level-picker" data-role="level-picker">${btnHtml}<div class="level-picker-pop">${opts}</div></div>`;
     }
 
-    const refText  = esc(row.reference || '');
+    const refRaw    = typeof row.reference === 'string' ? (parseCell(row.reference) || null) : (row.reference || null);
+    const refText    = refRaw && (refRaw.type === 'text' || refRaw.type === 'mixed') ? esc(refRaw.text || '') : '';
+    const refHasImg  = !!(refRaw && (refRaw.type === 'image' || refRaw.type === 'mixed' || refRaw.type === 'local-image'));
+    const refPos     = (refRaw && refRaw.imgPosition) || 'before';
+    const refLibName = refRaw ? (refRaw.type === 'local-image' ? refRaw.name : (refRaw.fromLibrary || refRaw.localImage || null)) : null;
     const wrongHtml = row.wrongAnswers.map((w, wi) => {
       const wt = (w.type === 'text' || w.type === 'mixed') ? esc(w.text || '') : '';
       const wh = w.type === 'image' || w.type === 'mixed' || w.type === 'local-image';
@@ -2090,7 +2098,19 @@ Views.builder = {
 
       <div class="builder-reference-section">
         <div class="builder-field-label" style="margin-top:.6rem">Reference <span class="builder-optional-tag">(optional)</span></div>
-        <textarea class="ref-text" rows="2" placeholder="Reference text shown after answering…">${refText}</textarea>
+        <div class="builder-field-row">
+          <textarea class="ref-text" rows="2" placeholder="Reference text shown after answering\u2026">${refText}</textarea>
+          <button class="builder-img-btn" title="Upload image" data-role="ref-img">${ICON_IMG_UPLOAD}</button>
+          <button class="builder-img-btn" title="Pick from library" data-role="ref-lib">${ICON_IMG_LIBRARY}</button>
+        </div>
+        ${refHasImg ? `<img src="${esc(refRaw.src || '')}" class="builder-img-preview" data-role="ref-img-preview"><button class="builder-img-clear" data-clear-for="ref">\u2715 Remove</button>` : ''}
+        ${refLibName ? `<span class="local-img-tag ref-lib-tag">\ud83d\udcda ${esc(refLibName)}</span>` : ''}
+        <div class="img-pos-row${refRaw && refRaw.type === 'mixed' ? '' : ' hidden'}" data-role="ref-pos-row">
+          <span class="img-pos-label">Image:</span>
+          <button class="img-pos-opt${refPos === 'before' ? ' active' : ''}" data-role="ref-pos-before">Above</button>
+          <button class="img-pos-opt${refPos === 'inline' ? ' active' : ''}" data-role="ref-pos-inline">Inline</button>
+          <button class="img-pos-opt${refPos === 'after' ? ' active' : ''}" data-role="ref-pos-after">Below</button>
+        </div>
       </div>`;
 
     Views.builder.wireCard(card, row, idx);
@@ -2106,6 +2126,7 @@ Views.builder = {
     };
     asyncFillPreview(q,  'q-img-preview');
     asyncFillPreview(ca, 'ca-img-preview');
+    asyncFillPreview(refRaw || {}, 'ref-img-preview');
     row.wrongAnswers.forEach((w, wi) => asyncFillPreview(w, `wrong-img-preview-${wi}`));
 
     return card;
@@ -2244,6 +2265,9 @@ Views.builder = {
 
     wireField('q',  '.q-text',  () => row.question,     v => { row.question = v; });
     wireField('ca', '.ca-text', () => row.correctAnswer, v => { row.correctAnswer = v; });
+    // normalise reference to cell object (handles old plain-string data stored in saved decks)
+    if (typeof row.reference === 'string') row.reference = parseCell(row.reference) || null;
+    wireField('ref', '.ref-text', () => row.reference, v => { row.reference = v; });
 
     // ── level picker ──────────────────────────────────────────
     const levelPicker = card.querySelector('[data-role="level-picker"]');
@@ -2412,6 +2436,13 @@ Views.builder = {
         const tag = section?.querySelector('.wrong-lib-tag'); if (tag) tag.remove();
         btn.remove();
         updatePosRow(`wrong-pos-row-${wi}`, `wrong-pos-before-${wi}`, `wrong-pos-after-${wi}`, row.wrongAnswers[wi]);
+      } else if (f === 'ref') {
+        const t = card.querySelector('.ref-text')?.value || '';
+        row.reference = t ? { type: 'text', text: t } : null;
+        const p = card.querySelector('[data-role="ref-img-preview"]'); if (p) p.remove();
+        const tag = card.querySelector('.ref-lib-tag'); if (tag) tag.remove();
+        btn.remove();
+        updatePosRow('ref-pos-row', 'ref-pos-before', 'ref-pos-after', row.reference);
       }
     });
   },
@@ -2487,7 +2518,7 @@ Views.builder = {
       question:      { type: 'text', text: '' },
       correctAnswer: { type: 'text', text: '' },
       wrongAnswers:  [{ type: 'text', text: '' }],
-      reference:     ''
+      reference:     null
     });
     Views.builder.renderQuestions();
     // scroll to bottom
@@ -2520,7 +2551,15 @@ Views.builder = {
         }
       });
       const refTextEl = card.querySelector('.ref-text');
-      if (refTextEl) row.reference = refTextEl.value.trim();
+      if (refTextEl) {
+        const refTxt = refTextEl.value.trim();
+        if (!row.reference || typeof row.reference === 'string' || row.reference.type === 'text') {
+          row.reference = refTxt ? { type: 'text', text: refTxt } : null;
+        } else if (row.reference.type === 'mixed') {
+          row.reference = { ...row.reference, text: refTxt };
+        }
+        // image / local-image: no text component — leave cell unchanged
+      }
     });
 
     // filter empty rows
@@ -3507,9 +3546,9 @@ Views.flashcards = {
     renderCell(row.correctAnswer, document.getElementById('fc-back-content'));
 
     const fcRefEl   = document.getElementById('fc-back-reference');
-    const fcRefText = (row.reference || '').trim();
-    if (fcRefText) {
-      fcRefEl.textContent = fcRefText;
+    const fcRefCell = row.referenceCell ?? parseCell(row.reference || '');
+    if (fcRefCell) {
+      renderCell(fcRefCell, fcRefEl);
       fcRefEl.classList.remove('hidden');
     } else {
       fcRefEl.classList.add('hidden');
@@ -3841,11 +3880,11 @@ Views.quiz = {
       renderCell(row.correctAnswer, revealEl);
     }
 
-    // reference text (optional) — always shown on correct answers; on wrong answers only when showCorrect is enabled
+    // reference (optional) — always shown on correct answers; on wrong answers only when showCorrect is enabled
     const refEl   = document.getElementById('feedback-reference');
-    const refText = (row.reference || '').trim();
-    if (refText && (isCorrect || State.qz.showCorrect)) {
-      refEl.textContent = refText;
+    const refCell = row.referenceCell ?? parseCell(row.reference || '');
+    if (refCell && (isCorrect || State.qz.showCorrect)) {
+      renderCell(refCell, refEl);
       refEl.classList.remove('hidden');
     } else {
       refEl.classList.add('hidden');
@@ -4321,19 +4360,110 @@ function wireEvents() {
 
   // ── Image lightbox ──
   document.getElementById('img-lightbox').addEventListener('click', () => Lightbox.hide());
-  document.getElementById('img-lightbox-img').addEventListener('click', e => e.stopPropagation());
   document.getElementById('img-lightbox-close').addEventListener('click', e => { e.stopPropagation(); Lightbox.hide(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !document.getElementById('img-lightbox').classList.contains('hidden')) Lightbox.hide();
   });
 
-  // ── Lightbox pinch-to-zoom ──
+  // ── Lightbox pan + zoom (mouse wheel, mouse drag, touch pinch, single-finger pan) ──
   (function () {
+    const lb    = document.getElementById('img-lightbox');
     const lbImg = document.getElementById('img-lightbox-img');
-    let initialDist = 0;
-    let originScale = 1;
-    let currentScale = 1;
 
+    let scale = 1;
+    let tx = 0, ty = 0;                      // current translate in screen px
+
+    // ── drag state ──
+    let dragging = false;
+    let dragX = 0, dragY = 0;                // pointer position at drag start
+    let dragTx = 0, dragTy = 0;             // translate at drag start
+    let didDrag = false;                     // suppress accidental click after drag
+
+    // ── pinch state ──
+    let pinchDist0 = 0;
+    let pinchScale0 = 1;
+    let pinchTx0 = 0, pinchTy0 = 0;
+    let singleTouchX = 0, singleTouchY = 0;
+    let singleTouchTx = 0, singleTouchTy = 0;
+
+    function clamp(val, min, max) { return Math.min(max, Math.max(min, val)); }
+
+    function maxPan() {
+      // Allow panning up to the point where the scaled edge reaches the original edge position.
+      return {
+        x: Math.max(0, lbImg.offsetWidth  * (scale - 1) / 2),
+        y: Math.max(0, lbImg.offsetHeight * (scale - 1) / 2)
+      };
+    }
+
+    function applyTransform() {
+      const m = maxPan();
+      tx = clamp(tx, -m.x, m.x);
+      ty = clamp(ty, -m.y, m.y);
+      lbImg.style.transform = scale > 1 ? `translate(${tx}px,${ty}px) scale(${scale})` : '';
+      lbImg.style.cursor     = scale > 1 ? (dragging ? 'grabbing' : 'grab') : '';
+    }
+
+    function resetState() {
+      scale = 1; tx = 0; ty = 0;
+      dragging = false; didDrag = false;
+      lbImg.style.transform = '';
+      lbImg.style.cursor    = '';
+    }
+    Lightbox._resetZoom = resetState;
+
+    // ── Mouse wheel zoom (zoom toward cursor) ──
+    lb.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor    = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const newScale  = clamp(scale * factor, 1, 5);
+      if (newScale === scale) return;
+
+      // Keep the point under the cursor fixed during zoom
+      const rect = lbImg.getBoundingClientRect();
+      const cx   = e.clientX - (rect.left + rect.width  / 2);
+      const cy   = e.clientY - (rect.top  + rect.height / 2);
+      const sf   = newScale / scale;
+      tx = cx * (1 - sf) + tx * sf;
+      ty = cy * (1 - sf) + ty * sf;
+      scale = newScale;
+      if (scale <= 1) { tx = 0; ty = 0; }
+      applyTransform();
+    }, { passive: false });
+
+    // ── Mouse drag pan ──
+    lbImg.addEventListener('mousedown', e => {
+      if (scale <= 1) return;
+      e.preventDefault();
+      dragging = true; didDrag = false;
+      dragX = e.clientX; dragY = e.clientY;
+      dragTx = tx; dragTy = ty;
+      lbImg.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - dragX;
+      const dy = e.clientY - dragY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+      tx = dragTx + dx;
+      ty = dragTy + dy;
+      applyTransform();
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      applyTransform();   // re-applies cursor: grab
+    });
+
+    // Prevent a post-drag click from closing the lightbox
+    lbImg.addEventListener('click', e => {
+      e.stopPropagation();
+      if (didDrag) { didDrag = false; e.preventDefault(); }
+    });
+
+    // ── Touch: pinch-to-zoom + single-finger pan ──
     function getTouchDist(t1, t2) {
       return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
     }
@@ -4341,32 +4471,39 @@ function wireEvents() {
     lbImg.addEventListener('touchstart', e => {
       if (e.touches.length === 2) {
         e.preventDefault();
-        initialDist = getTouchDist(e.touches[0], e.touches[1]);
-        originScale = currentScale;
+        pinchDist0   = getTouchDist(e.touches[0], e.touches[1]);
+        pinchScale0  = scale;
+        pinchTx0     = tx;
+        pinchTy0     = ty;
+      } else if (e.touches.length === 1 && scale > 1) {
+        e.preventDefault();
+        singleTouchX  = e.touches[0].clientX;
+        singleTouchY  = e.touches[0].clientY;
+        singleTouchTx = tx;
+        singleTouchTy = ty;
       }
     }, { passive: false });
 
     lbImg.addEventListener('touchmove', e => {
       if (e.touches.length === 2) {
         e.preventDefault();
-        const ratio = getTouchDist(e.touches[0], e.touches[1]) / initialDist;
-        currentScale = Math.min(Math.max(originScale * ratio, 1), 5);
-        lbImg.style.transform = `scale(${currentScale})`;
+        const dist     = getTouchDist(e.touches[0], e.touches[1]);
+        const newScale = clamp(pinchScale0 * (dist / pinchDist0), 1, 5);
+        const sf       = newScale / scale;
+        tx = pinchTx0 * (newScale / pinchScale0);
+        ty = pinchTy0 * (newScale / pinchScale0);
+        scale = newScale;
+        applyTransform();
+      } else if (e.touches.length === 1 && scale > 1) {
+        e.preventDefault();
+        tx = singleTouchTx + (e.touches[0].clientX - singleTouchX);
+        ty = singleTouchTy + (e.touches[0].clientY - singleTouchY);
+        applyTransform();
       }
     }, { passive: false });
 
     lbImg.addEventListener('touchend', () => {
-      if (currentScale < 1.05) {
-        currentScale = 1;
-        lbImg.style.transform = '';
-      }
-    });
-
-    // Reset scale state whenever the lightbox is opened
-    document.getElementById('img-lightbox').addEventListener('transitionend', () => {
-      if (document.getElementById('img-lightbox').classList.contains('hidden')) {
-        currentScale = 1;
-      }
+      if (scale < 1.05) resetState();
     });
   }());
 

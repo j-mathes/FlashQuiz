@@ -75,7 +75,7 @@ Import a **CSV**, **Excel** (`.xlsx` / `.xls`), or **Bundle ZIP** file. Use **�
 | Column | Contents |
 |---|---|
 | A (`Level`) | Level name (e.g. Easy / Medium / Hard) — leave blank to leave unassigned |
-| B (`Reference`) | Optional reference text shown after answering |
+| B (`Reference`) | Optional reference shown after answering — supports the same image syntax as any other cell |
 | C (`Question`) | Question text or image |
 | D (`Correct Answer`) | Correct answer |
 | E, F, G… | Wrong answers (at least one required for Quiz mode) |
@@ -166,14 +166,16 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 
 **Data format** — levels export as a `Level` column before `Reference` and `Question` in CSV/Excel and are restored on re-import (colours assigned from the default palette, re-customisable in the builder).
 
-#### Reference text
-Each question has an optional **Reference** field in the builder. It is a plain-text annotation shown in two places:
+#### Reference
+Each question has an optional **Reference** field in the builder. It supports the same rich content as question and answer fields — plain text, images (`[IMG:]`, `[LOCAL:]`, bare URLs), or mixed text + image — and is shown in two places:
 - **Flashcard back** — pinned to the bottom of the answer face, below the answer content, separated by a subtle divider
 - **Quiz feedback box** — always shown on a correct answer; on a wrong answer, only shown when **Show correct answer** is enabled. Appears below the ✅/❌ verdict and, when visible on a wrong guess, below the correct-answer reveal. Visually distinguished with a left border.
 
+In the builder, the Reference field has the same **image upload** and **library pick** buttons as questions and answers. When an image is added alongside text, the same **Above / Inline / Below** position toggle appears. The **✕ Remove** button clears the image while keeping any text.
+
 Leave it blank and it is hidden in both modes.
 
-In CSV/Excel, Reference is the second column (column B when levels are present).
+In CSV/Excel, Reference is the second column (column B when levels are present) and accepts the same image syntax as any other cell.
 
 #### Saving & exporting
 - **💾 Save Deck** — overwrites the deck in place (rename here updates the name, no copy made)
