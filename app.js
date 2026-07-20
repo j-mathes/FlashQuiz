@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.1.0';
+const APP_VERSION  = '4.2.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -3525,21 +3525,27 @@ Views.flashcards = {
     State.fc.questions = shuffle(await resolveLocalImages(filteredRows));
     State.fc.idx       = 0;
     State.fc.flipped   = false;
+    State.fc.viewedIds = new Set();
 
-    document.getElementById('fc-selector').classList.add('hidden');
-    document.getElementById('fc-player').classList.remove('hidden');
-    Views.flashcards.showCard(0);
+    // build per-level totals from the filtered deck
+    const levelTotals = {};
+    filteredRows.forEach(r => { if (r.level) levelTotals[r.level] = (levelTotals[r.level] || 0) + 1; });
 
-    // log flashcard session
+    // create session before showCard so the first card is counted
     const session = {
       id: genId(), userId: State.currentUser ? State.currentUser.id : null,
       userName: State.currentUser ? State.currentUser.name : 'Anonymous',
       datasetId: ds.id, datasetName: ds.name, mode: 'flashcard',
       startedAt: new Date().toISOString(), endedAt: null,
       cardsViewed: 0, totalCards: filteredRows.length,
-      levelFilterLabel: LevelFilter.filterLabel(ds, levelFilter)
+      levelFilterLabel: LevelFilter.filterLabel(ds, levelFilter),
+      levels: ds.levels || [], levelTotals, levelViewed: {}
     };
     State.fc.sessionRef = session;
+
+    document.getElementById('fc-selector').classList.add('hidden');
+    document.getElementById('fc-player').classList.remove('hidden');
+    Views.flashcards.showCard(0);
   },
 
   showCard(idx) {
@@ -3549,10 +3555,19 @@ Views.flashcards = {
     State.fc.idx     = idx;
     State.fc.flipped = false;
 
+    // track unique cards viewed per level
+    const row = qs[idx];
+    const sid = row.id;
+    if (State.fc.sessionRef && State.fc.viewedIds && !State.fc.viewedIds.has(sid)) {
+      State.fc.viewedIds.add(sid);
+      if (row.level) {
+        const lv = State.fc.sessionRef.levelViewed;
+        lv[row.level] = (lv[row.level] || 0) + 1;
+      }
+    }
+
     const card = document.getElementById('fc-card');
     card.classList.remove('flipped');
-
-    const row = qs[idx];
     renderCell(row.question,      document.getElementById('fc-front-content'));
     renderCell(row.correctAnswer, document.getElementById('fc-back-content'));
 
@@ -4241,10 +4256,30 @@ Views.reports = {
 
   buildDetail(session, container) {
     if (session.mode === 'flashcard') {
-      const levelLine = session.levelFilterLabel
-        ? `<p style="font-size:.83rem;color:var(--clr-text-muted);margin:.2rem 0">\ud83c\udff7 Levels: ${esc(session.levelFilterLabel)}</p>`
-        : '';
-      container.innerHTML = `${levelLine}<p style="padding:.5rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>`;
+      const lev         = session.levels      || [];
+      const levelViewed = session.levelViewed || {};
+      const levelTotals = session.levelTotals || {};
+      const active      = lev.filter(l => (levelTotals[l.name] || 0) > 0);
+      const levelFilterLine = session.levelFilterLabel
+        ? `<p class="rpt-meta">\ud83c\udff7 ${esc(session.levelFilterLabel)}</p>` : '';
+      let levHtml = '';
+      if (active.length) {
+        levHtml = '<div class="fc-level-report">';
+        active.forEach(l => {
+          const viewed = levelViewed[l.name] || 0;
+          const total  = levelTotals[l.name] || 0;
+          const pct    = total ? Math.round(viewed / total * 100) : 0;
+          levHtml += `<div class="fc-level-row">
+            <span class="level-badge" style="background:${esc(l.color)};color:${esc(contrastColor(l.color))}">${esc(l.name)}</span>
+            <span class="fc-level-bar-wrap"><span class="fc-level-bar" style="width:${pct}%;background:${esc(l.color)}"></span></span>
+            <span class="fc-level-count">${viewed}\u00a0/\u00a0${total}</span>
+          </div>`;
+        });
+        levHtml += '</div>';
+      }
+      container.innerHTML = `${levelFilterLine}
+        <p style="padding:.35rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>
+        ${levHtml}`;
       return;
     }
     if (!session.attempts || !session.attempts.length) {
@@ -4398,82 +4433,179 @@ Views.reports = {
 
   // ── Performance Chart tab ─────────────────────────────────
   _buildChartPane(session, pane) {
-    const rounds    = [...new Set(session.attempts.map(a => a.round))].sort((a, b) => a - b);
-    const roundData = rounds.map(rn => {
-      const rA = session.attempts.filter(a => a.round === rn);
-      const c  = rA.filter(a => a.correct).length, t = rA.length;
-      return { label: `R${rn}`, sublabel: `Round ${rn}`, correct: c, total: t,
-               pct: t ? Math.round(c / t * 100) : 0 };
-    });
-
-    const ls        = session.levelScores || {};
+    const attempts  = session.attempts;
     const lev       = session.levels || [];
-    const levelData = lev.filter(l => ls[l.name] && ls[l.name].total > 0).map(l => {
-      const sc = ls[l.name];
-      return { label: l.name, sublabel: l.name, correct: sc.correct, total: sc.total,
-               pct: sc.total ? Math.round(sc.correct / sc.total * 100) : 0, color: l.color };
-    });
+    const rounds    = [...new Set(attempts.map(a => a.round))].sort((a, b) => a - b);
+    const levelKeys = lev.map(l => l.name).filter(n => attempts.some(a => a.level === n));
+    const hasLevels = levelKeys.length > 0;
 
-    const showToggle = levelData.length > 0;
-    pane.innerHTML = `
-      ${showToggle ? `<div class="rpt-chart-toggle">
-        <button class="rpt-chart-btn active" data-view="rounds">By Round</button>
-        <button class="rpt-chart-btn" data-view="levels">By Level</button>
-      </div>` : ''}
-      <div class="rpt-chart-area"></div>`;
+    const ROUND_COLORS = ['#4a90d9','#27ae60','#e67e22','#8e44ad','#e74c3c','#16a085','#f39c12','#2c3e50'];
 
-    const renderChart = (data, useColors) =>
-      pane.querySelector('.rpt-chart-area').innerHTML = Views.reports._buildBarSVG(data, useColors);
-
-    renderChart(roundData, false);
-
-    if (showToggle) {
-      pane.querySelectorAll('.rpt-chart-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          pane.querySelectorAll('.rpt-chart-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          btn.dataset.view === 'levels' ? renderChart(levelData, true) : renderChart(roundData, false);
-        });
+    // matrix[primary][secondary] = {correct, total}
+    const makeMatrix = (primKeys, secKeys, getP, getS) => {
+      const m = {};
+      primKeys.forEach(pk => { m[pk] = {}; secKeys.forEach(sk => { m[pk][sk] = {correct:0,total:0}; }); });
+      attempts.forEach(a => {
+        const p = getP(a), s = getS(a);
+        if (m[p] && m[p][s] !== undefined) { m[p][s].total++; if (a.correct) m[p][s].correct++; }
       });
-    }
+      return m;
+    };
+
+    let currentView = 'rounds', currentYAxis = 'pct';
+
+    pane.innerHTML = `
+      <div class="rpt-chart-controls">
+        ${hasLevels ? `<div class="rpt-chart-toggle">
+          <button class="rpt-chart-btn active" data-view="rounds">By Round</button>
+          <button class="rpt-chart-btn" data-view="levels">By Level</button>
+        </div><span class="rpt-chart-sep"></span>` : ''}
+        <div class="rpt-chart-toggle">
+          <button class="rpt-chart-btn active" data-yaxis="pct">%</button>
+          <button class="rpt-chart-btn" data-yaxis="count">Count</button>
+        </div>
+      </div>
+      <div class="rpt-chart-area"></div>
+      <div class="rpt-chart-legend"></div>`;
+
+    const renderChart = () => {
+      const pctMode = currentYAxis === 'pct';
+      let bars, groups;
+
+      if (currentView === 'rounds') {
+        if (!hasLevels) {
+          groups = [];
+          bars = rounds.map(rn => {
+            const rA = attempts.filter(a => a.round === rn);
+            const correct = rA.filter(a => a.correct).length, total = rA.length;
+            const val = pctMode ? (total ? correct / total * 100 : 0) : correct;
+            return { label: `R${rn}`, title: `Round ${rn}: ${correct}/${total}`, total,
+                     segments: [{ key: 'all', correct, total, val, color: '#4a90d9' }] };
+          });
+        } else {
+          groups = levelKeys.map(n => ({ key: n, label: n, color: lev.find(l => l.name === n)?.color || '#999' }));
+          const mx = makeMatrix(rounds, levelKeys, a => a.round, a => a.level);
+          bars = rounds.map(rn => {
+            const rTotal = attempts.filter(a => a.round === rn).length;
+            const segs = groups.map(g => {
+              const {correct, total} = mx[rn][g.key];
+              return { key: g.key, correct, total,
+                       val: pctMode ? (rTotal ? correct / rTotal * 100 : 0) : correct,
+                       color: g.color };
+            }).filter(s => s.total > 0);
+            const allC = segs.reduce((s, x) => s + x.correct, 0);
+            return { label: `R${rn}`, title: `Round ${rn}: ${allC}/${rTotal}`, total: rTotal, segments: segs };
+          });
+        }
+      } else {
+        groups = rounds.map((rn, i) => ({ key: rn, label: `R${rn}`, color: ROUND_COLORS[i % ROUND_COLORS.length] }));
+        const mx = makeMatrix(levelKeys, rounds, a => a.level, a => a.round);
+        bars = levelKeys.map(lname => {
+          const lTotal = attempts.filter(a => a.level === lname).length;
+          const segs = groups.map(g => {
+            const {correct, total} = mx[lname][g.key];
+            return { key: g.key, correct, total,
+                     val: pctMode ? (lTotal ? correct / lTotal * 100 : 0) : correct,
+                     color: g.color };
+          }).filter(s => s.total > 0);
+          const allC = segs.reduce((s, x) => s + x.correct, 0);
+          return { label: lname, title: `${lname}: ${allC}/${lTotal}`, total: lTotal, segments: segs };
+        });
+      }
+
+      pane.querySelector('.rpt-chart-area').innerHTML =
+        Views.reports._buildStackedBarSVG(bars, pctMode);
+
+      const legendEl = pane.querySelector('.rpt-chart-legend');
+      legendEl.innerHTML = groups.length > 1
+        ? groups.map(g =>
+            `<span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background:${esc(g.color)}"></span>${esc(g.label)}</span>`
+          ).join('')
+        : '';
+    };
+
+    renderChart();
+
+    pane.querySelectorAll('[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pane.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        renderChart();
+      });
+    });
+    pane.querySelectorAll('[data-yaxis]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pane.querySelectorAll('[data-yaxis]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentYAxis = btn.dataset.yaxis;
+        renderChart();
+      });
+    });
   },
 
-  _buildBarSVG(data, useCustomColors) {
-    if (!data.length) return '<p class="rpt-empty-note">No data available.</p>';
-    const W = 400, padL = 36, padB = 32, padT = 22, padR = 12;
+  _buildStackedBarSVG(bars, pctMode) {
+    if (!bars.length) return '<p class="rpt-empty-note">No data available.</p>';
+
+    const W = 400, padL = 38, padB = 32, padT = 22, padR = 12;
     const chartH = 150, H = chartH + padT + padB;
     const chartW = W - padL - padR;
-    const n      = data.length;
-    const slot   = chartW / n;
-    const barW   = Math.min(52, Math.floor(slot * 0.6));
+    const slot   = chartW / bars.length;
+    const barW   = Math.min(52, Math.floor(slot * 0.65));
 
-    let grid = '', bars = '', xlabels = '';
+    const maxVal = pctMode ? 100 : Math.max(1, ...bars.map(b => b.total));
 
-    [0, 25, 50, 75, 100].forEach(v => {
-      const y = (padT + chartH * (1 - v / 100)).toFixed(1);
+    // Grid lines
+    const gridVals = pctMode ? [0, 25, 50, 75, 100] : (() => {
+      const step = Math.ceil(maxVal / 4);
+      return [0, step, step * 2, step * 3, maxVal];
+    })();
+
+    let grid = '', svg = '';
+
+    gridVals.forEach(v => {
+      const y = (padT + chartH * (1 - v / maxVal)).toFixed(1);
       grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--clr-border)" stroke-width="1"/>`;
-      grid += `<text x="${padL - 4}" y="${(+y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--clr-text-muted)">${v}</text>`;
+      grid += `<text x="${(padL - 4)}" y="${(+y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--clr-text-muted)">${pctMode ? v + '%' : v}</text>`;
     });
 
-    data.forEach((d, i) => {
-      const bH    = Math.max(2, d.pct / 100 * chartH);
-      const x     = (padL + i * slot + (slot - barW) / 2).toFixed(1);
-      const y     = (padT + chartH - bH).toFixed(1);
-      const color = useCustomColors && d.color ? d.color
-                  : d.pct >= 80 ? '#22c55e' : d.pct >= 60 ? '#f59e0b' : '#ef4444';
-      const cx    = (padL + i * slot + slot / 2).toFixed(1);
-      bars    += `<rect x="${x}" y="${y}" width="${barW}" height="${bH.toFixed(1)}" fill="${esc(color)}" rx="3" opacity=".9"/>`;
-      bars    += `<text x="${cx}" y="${(+y - 3).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--clr-text)">${d.pct}%</text>`;
-      bars    += `<text x="${cx}" y="${(H - padB + 4).toFixed(1)}" dy=".9em" text-anchor="middle" font-size="10" fill="var(--clr-text-muted)">${esc(d.label)}</text>`;
-      xlabels += `<title>${esc(d.sublabel)}: ${d.correct}/${d.total} (${d.pct}%)</title>`;
-    });
-
-    // Y-axis label (rotated)
     const axLy = (padT + chartH / 2).toFixed(1);
-    const yAxisLabel = `<text x="8" y="${axLy}" text-anchor="middle" font-size="9" fill="var(--clr-text-muted)" transform="rotate(-90,8,${axLy})">% Correct</text>`;
+    const yLabel = `<text x="8" y="${axLy}" text-anchor="middle" font-size="9" fill="var(--clr-text-muted)" transform="rotate(-90,8,${axLy})">${pctMode ? '% Correct' : 'Correct'}</text>`;
+
+    bars.forEach((bar, i) => {
+      const cx  = (padL + i * slot + slot / 2).toFixed(1);
+      const bx  = (padL + i * slot + (slot - barW) / 2).toFixed(1);
+      let yBase = padT + chartH;
+      let stackedVal = 0;
+
+      bar.segments.forEach(seg => {
+        if (seg.val <= 0) return;
+        const segH = seg.val / maxVal * chartH;
+        const sy   = (yBase - segH).toFixed(1);
+        svg += `<rect x="${bx}" y="${sy}" width="${barW}" height="${segH.toFixed(1)}" fill="${esc(seg.color)}" opacity=".88">
+          <title>${esc(String(seg.key))}: ${seg.correct}/${seg.total} correct</title>
+        </rect>`;
+        yBase    -= segH;
+        stackedVal += seg.val;
+      });
+
+      // Label above bar
+      if (stackedVal > 0) {
+        const topY = (padT + chartH * (1 - stackedVal / maxVal) - 3).toFixed(1);
+        svg += `<text x="${cx}" y="${topY}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--clr-text)">${pctMode ? Math.round(stackedVal) + '%' : Math.round(stackedVal)}</text>`;
+      }
+
+      // X-axis label
+      svg += `<text x="${cx}" y="${(H - padB + 4).toFixed(1)}" dy=".9em" text-anchor="middle" font-size="10" fill="var(--clr-text-muted)">${esc(bar.label)}</text>`;
+
+      // Invisible overlay for bar tooltip
+      const bTotalH = (bar.total / maxVal * chartH).toFixed(1);
+      const bTotalY = (padT + chartH - +bTotalH).toFixed(1);
+      svg += `<rect x="${bx}" y="${bTotalY}" width="${barW}" height="${bTotalH}" fill="none" pointer-events="all"><title>${esc(bar.title)}</title></rect>`;
+    });
 
     return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="rpt-bar-svg" role="img" aria-label="Performance chart">
-      ${yAxisLabel}${grid}${bars}
+      ${yLabel}${grid}${svg}
     </svg>`;
   },
 

@@ -1944,10 +1944,22 @@ body.theme-dark .rpt-missed-selected { color: #fca5a5; }
 body.theme-dark .rpt-missed-correct  { color: #86efac; }
 
 /* ── Performance Chart pane ──────────────────────────────── */
+.rpt-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+.rpt-chart-sep {
+  display: block;
+  width: 1px;
+  align-self: stretch;
+  background: var(--clr-border);
+  margin: 0 .25rem;
+}
 .rpt-chart-toggle {
   display: flex;
-  gap: .4rem;
-  margin-bottom: .75rem;
+  gap: .35rem;
 }
 .rpt-chart-btn {
   background: none;
@@ -1964,11 +1976,63 @@ body.theme-dark .rpt-missed-correct  { color: #86efac; }
   border-color: var(--clr-primary);
   color: #fff;
 }
+.rpt-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .75rem;
+  margin-top: .5rem;
+  font-size: .8rem;
+}
+.rpt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  color: var(--clr-text-muted);
+}
+.rpt-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
 .rpt-bar-svg {
   width: 100%;
   max-height: 210px;
   display: block;
   overflow: visible;
+}
+
+/* ── Flashcard per-level report ──────────────────────────── */
+.fc-level-report {
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  margin-top: .6rem;
+}
+.fc-level-row {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-size: .83rem;
+}
+.fc-level-bar-wrap {
+  flex: 1;
+  height: 7px;
+  background: var(--clr-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fc-level-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .35s ease;
+}
+.fc-level-count {
+  font-size: .78rem;
+  color: var(--clr-text-muted);
+  min-width: 3.5rem;
+  text-align: right;
+  white-space: nowrap;
 }
 
 /* ── MODAL ─────────────────────────────────────────────────────── */
