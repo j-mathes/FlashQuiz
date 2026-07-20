@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.0.0';
+const APP_VERSION  = '4.1.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
