@@ -232,6 +232,13 @@ function cellLabel(cell) {
   return cell.text;
 }
 
+/** Display image src for a cell, or null if the cell has no image. */
+function cellImgSrc(cell) {
+  if (!cell) return null;
+  if ((cell.type === 'image' || cell.type === 'mixed') && cell.src) return cell.src;
+  return null;
+}
+
 /** Read a File as ArrayBuffer */
 function readFileBuffer(file) {
   return new Promise((resolve, reject) => {
@@ -548,6 +555,8 @@ const Settings = (() => {
     feedbackFontWeight: 'normal',  // 'normal' | 'bold'
     feedbackFontStyle:  'italic',  // 'normal' | 'italic'
     flipSpeed:          'normal',  // 'fast' | 'normal' | 'slow' | 'none'
+    reportRowEven:      '#ffffff',  // report attempt row – even
+    reportRowOdd:       '#f3f4f6',  // report attempt row – odd
   };
 
   function load() {
@@ -590,7 +599,9 @@ const Settings = (() => {
     body.style.setProperty('--f-font-family', fontFamilyMap[prefs.feedbackFontFamily]   || fontFamilyMap.system);
     body.style.setProperty('--f-font-weight', fontWeightMap[prefs.feedbackFontWeight]   || '400');
     body.style.setProperty('--f-font-style',  fontStyleMap[prefs.feedbackFontStyle]     || 'italic');
-    body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed]          || flipDurationMap.normal);
+    body.style.setProperty('--flip-duration', flipDurationMap[prefs.flipSpeed] || flipDurationMap.normal);
+    body.style.setProperty('--rpt-row-even', prefs.reportRowEven || '#ffffff');
+    body.style.setProperty('--rpt-row-odd',  prefs.reportRowOdd  || '#f3f4f6');
   }
 
   return { DEFAULTS, load, save, apply };
@@ -3902,9 +3913,12 @@ Views.quiz = {
       round: State.qz.round,
       correct: isCorrect,
       level: row.level || '',
-      selectedText: cellLabel(choice.cell),
+      selectedText:  cellLabel(choice.cell),
+      selectedSrc:   cellImgSrc(choice.cell),
       questionLabel: cellLabel(row.question),
-      correctLabel: cellLabel(row.correctAnswer)
+      questionSrc:   cellImgSrc(row.question),
+      correctLabel:  cellLabel(row.correctAnswer),
+      correctSrc:    cellImgSrc(row.correctAnswer)
     };
     State.qz.results.push({ qId: row.id, correct: isCorrect });
     State.qz.allAttempts.push(attempt);
@@ -3993,6 +4007,7 @@ Views.quiz = {
       finalScore: { correct: firstC, total: State.qz.questions.length },
       totalRounds: State.qz.round,
       attempts:    State.qz.allAttempts,
+      questionIds: State.qz.questions.map(q => q.id),
       levels:      State.qz.levels || [],
       levelScores: State.qz.levelScores || {},
       levelFilterLabel: State.qz.levelFilterLabel || null
@@ -4209,62 +4224,257 @@ Views.reports = {
           ${scoreHtml}
           <span class="report-expand-arrow">›</span>
         </div>
-        <div class="report-detail">${Views.reports.buildDetail(s)}</div>`;
+        <div class="report-detail"></div>`;
 
       div.querySelector('.report-item-header').addEventListener('click', () => {
         div.classList.toggle('open');
+        const detail = div.querySelector('.report-detail');
+        if (!detail.dataset.built) {
+          Views.reports.buildDetail(s, detail);
+          detail.dataset.built = '1';
+        }
       });
 
       list.appendChild(div);
     });
   },
 
-  buildDetail(session) {
+  buildDetail(session, container) {
     if (session.mode === 'flashcard') {
       const levelLine = session.levelFilterLabel
-        ? `<p style="font-size:.83rem;color:var(--clr-text-muted);margin:.2rem 0">🏷 Levels: ${esc(session.levelFilterLabel)}</p>`
+        ? `<p style="font-size:.83rem;color:var(--clr-text-muted);margin:.2rem 0">\ud83c\udff7 Levels: ${esc(session.levelFilterLabel)}</p>`
         : '';
-      return `${levelLine}<p style="padding:.5rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>`;
+      container.innerHTML = `${levelLine}<p style="padding:.5rem 0">Viewed ${session.cardsViewed || 0} of ${session.totalCards || '?'} cards.</p>`;
+      return;
     }
-    if (!session.attempts || !session.attempts.length) return '<p>No attempt detail available.</p>';
-    // header: rounds taken
-    const roundCount = session.totalRounds || [...new Set(session.attempts.map(a => a.round))].length;
+    if (!session.attempts || !session.attempts.length) {
+      container.innerHTML = '<p>No attempt detail available.</p>';
+      return;
+    }
 
-    const rounds = [...new Set(session.attempts.map(a => a.round))].sort((a, b) => a - b);
-    let html = roundCount > 1 ? `<p class="text-small" style="margin:.3rem 0">${roundCount} rounds taken to complete</p>` : '';
-    rounds.forEach(rn => {
-      const rAttempts = session.attempts.filter(a => a.round === rn);
-      const rC   = rAttempts.filter(a => a.correct).length;
-      const rT   = rAttempts.length;
-      const rPct = rT ? Math.round(rC / rT * 100) : 0;
-      html += `<div class="report-round-header">Round ${rn} <span class="report-round-score">${rC}/${rT} (${rPct}%)</span></div>`;
-      rAttempts.forEach(a => {
-        html += `<div class="report-attempt-item">
-          <span class="attempt-icon">${a.correct ? '✅' : '❌'}</span>
-          <span class="attempt-q">${esc(a.questionLabel || '?')}</span>
-          ${!a.correct ? `<span style="font-size:.8rem;color:var(--clr-text-muted)">→ ${esc(a.correctLabel || '')}</span>` : ''}
-        </div>`;
+    container.innerHTML = `
+      <div class="rpt-tabs" role="tablist">
+        <button class="rpt-tab active" data-tab="attempts">Attempts</button>
+        <button class="rpt-tab" data-tab="chart">Chart</button>
+      </div>
+      <div class="rpt-pane" data-pane="attempts"></div>
+      <div class="rpt-pane rpt-pane-hidden" data-pane="chart"></div>`;
+
+    Views.reports._buildAttemptsPane(session, container.querySelector('[data-pane="attempts"]'));
+
+    container.querySelectorAll('.rpt-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        container.querySelectorAll('.rpt-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        container.querySelectorAll('.rpt-pane').forEach(p =>
+          p.classList.toggle('rpt-pane-hidden', p.dataset.pane !== target)
+        );
+        const pane = container.querySelector(`[data-pane="${target}"]`);
+        if (pane && !pane.dataset.built) {
+          pane.dataset.built = '1';
+          if (target === 'chart') Views.reports._buildChartPane(session, pane);
+        }
       });
     });
+  },
 
-    // Per-level breakdown
-    const ls  = session.levelScores || {};
-    const lev = session.levels || [];
-    const activeL = lev
-      .filter(l => ls[l.name] && ls[l.name].total > 0)
-      .map(l => [l.name, ls[l.name]]);
+  // ── Attempts tab (with level filter + missed-only toggle) ─
+  _buildAttemptsPane(session, pane) {
+    // Render a cell as an image thumbnail (+ caption for mixed) or plain text.
+    const rptCellHtml = (label, src) => {
+      if (!src) return esc(label || '?');
+      const img  = `<img src="${esc(src)}" class="rpt-cell-img" alt="${esc(label || '')}">`;
+      const text = label && label !== '[Image]'
+        ? `<span class="rpt-cell-text">${esc(label)}</span>` : '';
+      return img + text;
+    };
+    const lev    = session.levels || [];
+    const levels = [...new Set(session.attempts.map(a => a.level).filter(Boolean))].sort();
+    const roundCount = session.totalRounds ||
+      [...new Set(session.attempts.map(a => a.round))].length;
+
+    // Level score summary
+    const ls = session.levelScores || {};
+    const activeL = lev.filter(l => ls[l.name] && ls[l.name].total > 0).map(l => [l.name, ls[l.name]]);
+    let summaryHtml = '';
     if (activeL.length) {
-      html += `<div class="report-level-breakdown">`;
-      activeL.forEach(([name, s]) => {
+      summaryHtml = '<div class="report-level-breakdown" style="margin-bottom:.65rem">';
+      activeL.forEach(([name, sc]) => {
         const lvl  = lev.find(l => l.name === name);
         const bg   = lvl ? esc(lvl.color) : 'var(--clr-border)';
         const fg   = lvl ? esc(contrastColor(lvl.color)) : 'var(--clr-text)';
-        const lpct = s.total ? Math.round(s.correct / s.total * 100) : 0;
-        html += `<span class="level-badge" style="background:${bg};color:${fg}">${esc(name)}: ${s.correct}/${s.total} (${lpct}%)</span>`;
+        const lpct = sc.total ? Math.round(sc.correct / sc.total * 100) : 0;
+        summaryHtml += `<span class="level-badge" style="background:${bg};color:${fg}">${esc(name)}: ${sc.correct}/${sc.total} (${lpct}%)</span>`;
       });
-      html += `</div>`;
+      summaryHtml += '</div>';
     }
-    return html;
+
+    // Level filter buttons
+    const filterHtml = levels.length
+      ? `<div class="rpt-level-filter">
+          <button class="rpt-lvl-btn active" data-lvl="">All</button>
+          ${levels.map(l => {
+            const def   = lev.find(lv => lv.name === l);
+            const style = def ? `style="background:${esc(def.color)};color:${esc(contrastColor(def.color))}"` : '';
+            return `<button class="rpt-lvl-btn level-badge" data-lvl="${esc(l)}" ${style}>${esc(l)}</button>`;
+          }).join('')}
+        </div>` : '';
+
+    pane.innerHTML = `${summaryHtml}${filterHtml}
+      <div class="rpt-attempts-toolbar">
+        ${roundCount > 1 ? `<span class="rpt-meta">${roundCount} rounds</span>` : '<span></span>'}
+        <label class="rpt-toggle-label">
+          <input type="checkbox" class="rpt-missed-only"> Show missed only
+        </label>
+      </div>
+      <div class="rpt-attempts-list"></div>`;
+
+    const renderAttempts = (lvlFilter, missedOnly) => {
+      rowIdx = 0;
+      const all    = session.attempts;
+      const shown  = all.filter(a =>
+        (!lvlFilter || a.level === lvlFilter) && (!missedOnly || !a.correct)
+      );
+      const rounds = [...new Set(shown.map(a => a.round))].sort((a, b) => a - b);
+      let html = '';
+      if (!shown.length) {
+        html = `<p class="rpt-empty-note">No ${missedOnly ? 'missed ' : ''}questions${lvlFilter ? ` for level \u201c${esc(lvlFilter)}\u201d` : ''}.</p>`;
+      } else {
+        rounds.forEach(rn => {
+          const fullRound = all.filter(a => a.round === rn);
+          const rShown = shown.filter(a => a.round === rn);
+          const rC  = fullRound.filter(a => a.correct).length;
+          const rT  = fullRound.length;
+          const rPct = rT ? Math.round(rC / rT * 100) : 0;
+          html += `<div class="report-round-header">Round ${rn} <span class="report-round-score">${rC}/${rT} (${rPct}%)</span></div>`;
+          rShown.forEach(a => {
+            const deckPos = session.questionIds
+              ? session.questionIds.indexOf(a.qId) + 1
+              : 0;
+            const qNum    = deckPos > 0 ? deckPos : fullRound.indexOf(a) + 1;
+            const qPrefix = deckPos > 0 ? 'Q #' : '#';
+            const def  = lev.find(l => l.name === a.level);
+            const badge = a.level
+              ? `<span class="level-badge rpt-q-lvl" ${def ? `style="background:${esc(def.color)};color:${esc(contrastColor(def.color))}"` : ''}>${esc(a.level)}</span>`
+              : '';
+            const rowCls = rowIdx++ % 2 === 0 ? 'rpt-row-even' : 'rpt-row-odd';
+            html += `<div class="report-attempt-item ${rowCls}">
+              <span class="attempt-num">${qPrefix}${qNum}</span>
+              ${badge}
+              <span class="attempt-icon">${a.correct ? '\u2705' : '\u274c'}</span>
+              <span class="attempt-body">
+                <span class="attempt-q">${rptCellHtml(a.questionLabel, a.questionSrc)}</span>
+                ${!a.correct
+                  ? `<span class="attempt-hint">\u274c You answered: ${rptCellHtml(a.selectedText, a.selectedSrc)}</span>
+                     <span class="attempt-hint attempt-hint-correct">\u2705 Correct: ${rptCellHtml(a.correctLabel, a.correctSrc)}</span>`
+                  : ''}
+              </span>
+            </div>`;
+          });
+        });
+      }
+      pane.querySelector('.rpt-attempts-list').innerHTML = html;
+    };
+
+    let activeLevel = '', missedOnly = false;
+    let rowIdx = 0;
+    renderAttempts('', false);
+
+    pane.querySelectorAll('.rpt-lvl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pane.querySelectorAll('.rpt-lvl-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeLevel = btn.dataset.lvl;
+        renderAttempts(activeLevel, missedOnly);
+      });
+    });
+
+    pane.querySelector('.rpt-missed-only').addEventListener('change', e => {
+      missedOnly = e.target.checked;
+      renderAttempts(activeLevel, missedOnly);
+    });
+  },
+
+  // ── Performance Chart tab ─────────────────────────────────
+  _buildChartPane(session, pane) {
+    const rounds    = [...new Set(session.attempts.map(a => a.round))].sort((a, b) => a - b);
+    const roundData = rounds.map(rn => {
+      const rA = session.attempts.filter(a => a.round === rn);
+      const c  = rA.filter(a => a.correct).length, t = rA.length;
+      return { label: `R${rn}`, sublabel: `Round ${rn}`, correct: c, total: t,
+               pct: t ? Math.round(c / t * 100) : 0 };
+    });
+
+    const ls        = session.levelScores || {};
+    const lev       = session.levels || [];
+    const levelData = lev.filter(l => ls[l.name] && ls[l.name].total > 0).map(l => {
+      const sc = ls[l.name];
+      return { label: l.name, sublabel: l.name, correct: sc.correct, total: sc.total,
+               pct: sc.total ? Math.round(sc.correct / sc.total * 100) : 0, color: l.color };
+    });
+
+    const showToggle = levelData.length > 0;
+    pane.innerHTML = `
+      ${showToggle ? `<div class="rpt-chart-toggle">
+        <button class="rpt-chart-btn active" data-view="rounds">By Round</button>
+        <button class="rpt-chart-btn" data-view="levels">By Level</button>
+      </div>` : ''}
+      <div class="rpt-chart-area"></div>`;
+
+    const renderChart = (data, useColors) =>
+      pane.querySelector('.rpt-chart-area').innerHTML = Views.reports._buildBarSVG(data, useColors);
+
+    renderChart(roundData, false);
+
+    if (showToggle) {
+      pane.querySelectorAll('.rpt-chart-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          pane.querySelectorAll('.rpt-chart-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          btn.dataset.view === 'levels' ? renderChart(levelData, true) : renderChart(roundData, false);
+        });
+      });
+    }
+  },
+
+  _buildBarSVG(data, useCustomColors) {
+    if (!data.length) return '<p class="rpt-empty-note">No data available.</p>';
+    const W = 400, padL = 36, padB = 32, padT = 22, padR = 12;
+    const chartH = 150, H = chartH + padT + padB;
+    const chartW = W - padL - padR;
+    const n      = data.length;
+    const slot   = chartW / n;
+    const barW   = Math.min(52, Math.floor(slot * 0.6));
+
+    let grid = '', bars = '', xlabels = '';
+
+    [0, 25, 50, 75, 100].forEach(v => {
+      const y = (padT + chartH * (1 - v / 100)).toFixed(1);
+      grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--clr-border)" stroke-width="1"/>`;
+      grid += `<text x="${padL - 4}" y="${(+y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--clr-text-muted)">${v}</text>`;
+    });
+
+    data.forEach((d, i) => {
+      const bH    = Math.max(2, d.pct / 100 * chartH);
+      const x     = (padL + i * slot + (slot - barW) / 2).toFixed(1);
+      const y     = (padT + chartH - bH).toFixed(1);
+      const color = useCustomColors && d.color ? d.color
+                  : d.pct >= 80 ? '#22c55e' : d.pct >= 60 ? '#f59e0b' : '#ef4444';
+      const cx    = (padL + i * slot + slot / 2).toFixed(1);
+      bars    += `<rect x="${x}" y="${y}" width="${barW}" height="${bH.toFixed(1)}" fill="${esc(color)}" rx="3" opacity=".9"/>`;
+      bars    += `<text x="${cx}" y="${(+y - 3).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--clr-text)">${d.pct}%</text>`;
+      bars    += `<text x="${cx}" y="${(H - padB + 4).toFixed(1)}" dy=".9em" text-anchor="middle" font-size="10" fill="var(--clr-text-muted)">${esc(d.label)}</text>`;
+      xlabels += `<title>${esc(d.sublabel)}: ${d.correct}/${d.total} (${d.pct}%)</title>`;
+    });
+
+    // Y-axis label (rotated)
+    const axLy = (padT + chartH / 2).toFixed(1);
+    const yAxisLabel = `<text x="8" y="${axLy}" text-anchor="middle" font-size="9" fill="var(--clr-text-muted)" transform="rotate(-90,8,${axLy})">% Correct</text>`;
+
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="rpt-bar-svg" role="img" aria-label="Performance chart">
+      ${yAxisLabel}${grid}${bars}
+    </svg>`;
   },
 
   populateFilters(sessions) {
@@ -4312,6 +4522,10 @@ Views.settings = {
       ctrl.querySelectorAll('.seg-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === String(prefs[key]));
       });
+    });
+    ['reportRowEven', 'reportRowOdd'].forEach(key => {
+      const inp = document.getElementById('setting-' + key);
+      if (inp) inp.value = prefs[key] || Settings.DEFAULTS[key];
     });
 
     // About: show app version and active SW cache name
@@ -4829,6 +5043,19 @@ function wireEvents() {
       Views.settings.render();
     });
   });
+
+  // colour pickers for report rows
+  ['reportRowEven', 'reportRowOdd'].forEach(key => {
+    const inp = document.getElementById('setting-' + key);
+    if (!inp) return;
+    inp.addEventListener('input', () => {
+      const prefs = Settings.load();
+      prefs[key] = inp.value;
+      Settings.save(prefs);
+      Settings.apply(prefs);
+    });
+  });
+
   document.getElementById('btn-settings-reset').addEventListener('click', () => {
     Settings.save({ ...Settings.DEFAULTS });
     Settings.apply();
