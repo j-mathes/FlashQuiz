@@ -84,19 +84,19 @@ The first row must be a header beginning with `Level`. Decks exported from the b
 - Click card or press **Space** to flip; navigate with **Arrow keys** or Prev/Next buttons
 - Shuffled each session; restart anytime with **↺ Restart**
 - **Level filter** — choose which levels to study before starting
+- **Save & Resume** — signed-in users can save their position mid-session and resume later from the same card
 - **Reference** — if a question has reference content, it appears at the bottom of the card back, below the answer
-- **Image zoom** — tap the ⛶ button on any image to open a full-screen lightbox. **Pinch** or **scroll** to zoom (up to 5×); **drag** or **single-finger swipe** to pan when zoomed in; tap the background, press ✕, or press **Escape** to close
+- **Image zoom** — tap ⛶ on any image to open a full-screen lightbox; pinch or scroll to zoom (up to 5×); drag or swipe to pan; tap the background, ✕, or **Escape** to close
 
 ### Quiz Mode
 - Multiple-choice; all defined wrong answers are shown. Keyboard shortcuts **1–9** select choices; **Enter / →** advances after answering
 - **Live score chip** — `Correct / Total (%)` in the top bar, updated after every answer
 - **Per-level score badges** — appear below the top bar as levels are encountered, showing `LevelName: correct/total (%)`
-- **Reference** — always shown in the feedback box on a correct answer; on a wrong answer, only shown when **Show correct answer** is enabled
+- **Reference** — always shown on a correct answer; on a wrong answer, only shown when **Show correct answer** is enabled
 - **Score grid** — ⬜ unanswered / 🟩 correct / 🟥 incorrect per question
 - **↺ Retry Incorrect** — re-runs only missed questions in a new round; per-level scores accumulate across rounds
-- **Round summary** — the quiz complete screen shows each round's score and per-level chips
 - **Level filter** — choose which levels to include before starting
-- **Save & Resume** — signed-in users can save mid-quiz progress (including all settings) and resume later from exactly where they left off; the Show-correct-answer and Retry-incorrect settings are preserved with the snapshot
+- **Save & Resume** — signed-in users can save mid-quiz progress (including settings) and resume later from exactly where they left off
 - **Image zoom** — same lightbox as Flashcard mode; opening it does not select the answer choice
 
 ### Quiz Builder
@@ -105,9 +105,9 @@ Build or edit decks in the app. Each field — question, correct answer, wrong a
 
 #### Search & Filters
 - **Search bar** — filters questions in real time; a result count is shown while active
-- **Level filter** — when the deck has levels, coloured level badges appear below the search bar; all are active by default. Click a badge to show only questions from that level; click additional badges to add them; click **All** to reset. An **Unlabeled** button appears when any questions have no level assigned. The level filter stacks with all other filters.
-- **Missing Images** — shows only questions with broken image references; highlights when active
-- **Missing Levels** — shows only questions with no level or a deleted level; both filters can be active simultaneously
+- **Level filter** — coloured level badges appear when the deck has levels; all active by default. Click any badge to toggle it; click **All** to reset. An **Unlabeled** button appears when any questions have no level. Stacks with all other filters.
+- **Missing Images** — shows only questions with broken image references
+- **Missing Levels** — shows only questions with no level or a deleted level
 
 #### Adding an image — three ways
 
@@ -136,7 +136,7 @@ Tag each question with a difficulty or category badge (e.g. Easy / Medium / Hard
 3. **Levels manager shortcuts** — same **All Qs** / **Untagged** buttons on each level row
 
 #### Reference
-Each question has an optional **Reference** field. It supports the same rich content as other fields (plain text, images, mixed) and is shown on the flashcard back and in the quiz feedback box. The field has the same image upload, library, and position controls as question and answer fields.
+Each question has an optional **Reference** field (plain text, image, or mixed) shown on the flashcard back and in the quiz feedback box.
 
 #### Saving & Exporting
 - **💾 Save Deck** — overwrites in place
@@ -185,11 +185,10 @@ Expand a session to see two tabs:
 
 **Attempts tab**
 - Level score summary — coloured badges showing `LevelName: correct/total (%)`
-- **Level filter** — click a badge to show only questions from that level
+- **Level filter** — toggle level badges to include any combination of levels; all active by default; click **All** to reset
 - **Show missed only** toggle — instantly filters to wrong answers only
 - Each row shows: `Q #N` (builder question number) or `#N` (presentation order for older sessions), level badge, ✅/❌ icon, question text, and — for wrong answers — the selected answer and correct answer stacked below
-- Image-only questions and answers display as thumbnails rather than `[Image]`
-- Alternating row colours (configurable in Settings)
+- Image-only questions and answers display as thumbnails
 
 **Chart tab**
 - **By Round / By Level** — toggle the primary axis (separator visually distinguishes this from the next toggle)
@@ -215,11 +214,11 @@ All preferences are saved in `localStorage` and applied immediately.
 
 ### Users & Data Backup
 
-Add named profiles to track sessions separately; switch users from the nav bar. Anonymous play is also supported — progress cannot be saved anonymously.
+Add named profiles to track sessions separately; switch users from the nav bar. Anonymous play is supported — progress cannot be saved anonymously.
 
 **Backup (bottom of User Profiles page):**
-- **⬇ Export** (per user) — JSON backup of that user's profile, sessions, and in-progress quiz snapshot
-- **⬇ Export All** — JSON backup of all users, all sessions, and app settings; optionally includes in-progress quiz snapshots
+- **⬇ Export** (per user) — JSON backup of that user's profile, sessions, and any saved progress snapshot
+- **⬇ Export All** — JSON backup of all users, all sessions, and app settings; optionally includes saved progress snapshots
 - **⬆ Import Backup** — merges any FlashQuiz backup file; shows a preview of how many records are new before merging; records already present (matched by ID) are skipped
 
 ---
@@ -233,7 +232,7 @@ All data is browser-local — nothing leaves your device.
 | Decks + embedded images | IndexedDB |
 | Image Library | IndexedDB |
 | Users, sessions, metadata | localStorage |
-| Quiz progress snapshots | localStorage (named users only) |
+| Flashcard & quiz progress snapshots | localStorage (named users only) |
 | Settings | localStorage |
 
 ---
@@ -242,7 +241,10 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
-| **4.2.2** | Bug fixes: report session rows stack vertically on portrait mobile; level-select badges restored to independent multi-select (checkbox) behaviour; nav bar and home-screen tile order unified to Home → Flashcards → Quiz → Data → Builder → Reports → Settings → Users |
+| **4.3.1** | Resume cards appear below the deck list; FlashQuiz logo navigates to home screen; crash fix (stray brace in object literal) |
+| **4.3.0** | Flashcard Save & Resume — signed-in users can save mid-session progress and resume later from the same card (mirrors quiz behaviour) |
+| **4.2.3** | PWA update toast uses `controllerchange` for reliable detection on iOS Safari; zoom button hidden on the non-visible flashcard face |
+| **4.2.2** | Bug fixes: report session rows stack vertically on portrait mobile; level-select badges restored to independent multi-select; nav bar and home-screen tile order unified to Home → Flashcards → Quiz → Data → Builder → Reports → Settings → Users |
 | **4.2.1** | Update-available toast: fires at correct SW `installed` state, centered bottom-of-screen, full-toast click-to-reload, keyboard accessible |
 | **4.2.0** | Reports revamp: combined Attempts + Missed view with level filter and missed-only toggle; `Q #N` builder question numbering; image thumbnails in reports; stacked bar chart with By Round/Level and %/Count toggles; flashcard per-level viewing progress; configurable report row colours in Settings; builder level filter badges |
 | **4.1.0** | Reference field supports rich content (images, mixed text+image) in the builder, flashcard back, and quiz feedback; lightbox pan support (mouse drag, scroll-to-zoom, single-finger swipe) |

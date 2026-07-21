@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.2.2';
+const APP_VERSION  = '4.3.1';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -3564,6 +3564,7 @@ Views.flashcards = {
     document.getElementById('fc-player').classList.add('hidden');
     document.getElementById('fc-level-filter').classList.add('hidden');
     document.getElementById('fc-deck-list').classList.remove('hidden');
+    Views.flashcards.renderResumeCard();
     renderDatasetPicker(document.getElementById('fc-deck-list'), meta => {
       Views.flashcards.showLevelFilter(meta.id);
     });
@@ -3606,6 +3607,7 @@ Views.flashcards = {
 
     document.getElementById('fc-selector').classList.add('hidden');
     document.getElementById('fc-player').classList.remove('hidden');
+    document.getElementById('btn-fc-save').classList.toggle('hidden', !State.currentUser);
     Views.flashcards.showCard(0);
   },
 
@@ -3668,6 +3670,7 @@ Views.flashcards = {
       Views.flashcards.showCard(State.fc.idx + 1);
     } else {
       // done
+      Views.flashcards._clearProgress();
       Views.flashcards.finishSession();
       Modal.show({
         title: 'Deck Complete! 🎉',
@@ -3695,6 +3698,8 @@ Views.flashcards = {
     document.getElementById('fc-level-filter').classList.add('hidden');
     document.getElementById('fc-deck-list').classList.remove('hidden');
     document.getElementById('fc-selector').classList.remove('hidden');
+    document.getElementById('btn-fc-save').classList.add('hidden');
+    Views.flashcards.renderResumeCard();
     renderDatasetPicker(document.getElementById('fc-deck-list'), meta => {
       Views.flashcards.showLevelFilter(meta.id);
     });
@@ -3708,6 +3713,149 @@ Views.flashcards = {
       Storage.addSession(s);
       State.fc.sessionRef = null;
     }
+  },
+
+  // ── Progress save / resume ──────────────────────────────────
+
+  _progressKey() {
+    return State.currentUser ? 'fc_progress_' + State.currentUser.id : null;
+  },
+
+  _clearProgress() {
+    const key = Views.flashcards._progressKey();
+    if (key) Storage.lsDel(key);
+  },
+
+  saveProgress() {
+    const key = Views.flashcards._progressKey();
+    if (!key) return;
+    const fc   = State.fc;
+    const sess = fc.sessionRef || {};
+    const snapshot = {
+      userId:           State.currentUser.id,
+      savedAt:          new Date().toISOString(),
+      datasetId:        fc.datasetId,
+      datasetName:      sess.datasetName || '',
+      levels:           fc.levels || [],
+      levelFilterLabel: sess.levelFilterLabel || null,
+      questionIds:      fc.questions.map(q => q.id),
+      idx:              fc.idx,
+      viewedIds:        [...fc.viewedIds],
+      levelViewed:      sess.levelViewed || {},
+      levelTotals:      sess.levelTotals || {},
+      startedAt:        sess.startedAt   || new Date().toISOString(),
+      sessionId:        sess.id          || genId()
+    };
+    Storage.lsSet(key, snapshot);
+    Toast.show('Progress saved', 'success');
+  },
+
+  renderResumeCard() {
+    const card = document.getElementById('fc-resume-card');
+    const key  = Views.flashcards._progressKey();
+    if (!key) { card.classList.add('hidden'); return; }
+    const snap = Storage.lsGet(key, null);
+    if (!snap) { card.classList.add('hidden'); return; }
+
+    document.getElementById('fc-resume-deck-name').textContent = snap.datasetName || 'Unknown';
+    const viewed = (snap.viewedIds || []).length;
+    const total  = (snap.questionIds || []).length;
+    const pct    = total ? Math.round(viewed / total * 100) : 0;
+    const detail = [
+      `${viewed}\u202f/\u202f${total} cards viewed (${pct}%)`,
+      snap.levelFilterLabel ? `\ud83c\udff7 ${snap.levelFilterLabel}` : null,
+      `Saved ${fmtDateTime(snap.savedAt)}`
+    ].filter(Boolean).join(' \u00b7 ');
+    document.getElementById('fc-resume-detail').textContent = detail;
+    card.classList.remove('hidden');
+  },
+
+  async resumeProgress() {
+    const key  = Views.flashcards._progressKey();
+    if (!key) return;
+    const snap = Storage.lsGet(key, null);
+    if (!snap) { Toast.show('No saved progress found', 'warning'); return; }
+
+    const ds = await Storage.getDataset(snap.datasetId);
+    if (!ds) {
+      Toast.show('Original dataset no longer available', 'error');
+      Storage.lsDel(key);
+      Views.flashcards.renderResumeCard();
+      return;
+    }
+
+    const resolvedRows = await resolveLocalImages(ds.rows);
+    const rowMap    = new Map(resolvedRows.map(r => [r.id, r]));
+    const questions = (snap.questionIds || []).map(id => rowMap.get(id)).filter(Boolean);
+
+    if (!questions.length) {
+      Toast.show('Saved progress is incompatible with the current dataset', 'error');
+      Storage.lsDel(key);
+      Views.flashcards.renderResumeCard();
+      return;
+    }
+
+    const session = {
+      id:               snap.sessionId || genId(),
+      userId:           State.currentUser ? State.currentUser.id   : null,
+      userName:         State.currentUser ? State.currentUser.name : 'Anonymous',
+      datasetId:        ds.id,  datasetName: ds.name,  mode: 'flashcard',
+      startedAt:        snap.startedAt || new Date().toISOString(),  endedAt: null,
+      cardsViewed:      (snap.viewedIds || []).length,
+      totalCards:       questions.length,
+      levelFilterLabel: snap.levelFilterLabel || null,
+      levels:           ds.levels  || [],
+      levelTotals:      snap.levelTotals || {},
+      levelViewed:      snap.levelViewed  || {}
+    };
+
+    State.fc.datasetId  = ds.id;
+    State.fc.levels     = snap.levels || ds.levels || [];
+    State.fc.questions  = questions;
+    State.fc.idx        = Math.min(snap.idx, questions.length - 1);
+    State.fc.flipped    = false;
+    State.fc.viewedIds  = new Set(snap.viewedIds || []);
+    State.fc.sessionRef = session;
+
+    document.getElementById('fc-selector').classList.add('hidden');
+    document.getElementById('fc-player').classList.remove('hidden');
+    document.getElementById('btn-fc-save').classList.remove('hidden');
+    Views.flashcards.showCard(State.fc.idx);
+    Toast.show('Flashcard session resumed', 'success');
+  },
+
+  onBeforeLeave(proceed) {
+    if (document.getElementById('fc-player').classList.contains('hidden')) return true;
+    const user = State.currentUser;
+    if (user) {
+      Modal.show({
+        title: 'Exit Flashcards',
+        body:  'Save your progress so you can resume this session later?',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit without saving', cls: 'btn-ghost', action: () => {
+            Views.flashcards._clearProgress();
+            Views.flashcards.exit();
+            proceed();
+          }},
+          { label: '\ud83d\udcbe Save & Exit', cls: 'btn-primary', action: () => {
+            Views.flashcards.saveProgress();
+            Views.flashcards.exit();
+            proceed();
+          }}
+        ]
+      });
+    } else {
+      Modal.show({
+        title: 'Exit Flashcards',
+        body:  'Return to deck selection?',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit', cls: 'btn-ghost', action: () => { Views.flashcards.exit(); proceed(); }}
+        ]
+      });
+    }
+    return false;
   }
 };
 
@@ -5145,8 +5293,33 @@ function wireEvents() {
   document.getElementById('btn-fc-next').addEventListener('click',    () => Views.flashcards.next());
   document.getElementById('btn-fc-prev').addEventListener('click',    () => Views.flashcards.prev());
   document.getElementById('btn-fc-restart').addEventListener('click', () => Views.flashcards.restart());
-  document.getElementById('btn-fc-exit').addEventListener('click',    () => {
-    Modal.confirm('Exit Flashcards', 'Return to deck selection?', () => Views.flashcards.exit());
+  document.getElementById('btn-fc-save').addEventListener('click',    () => Views.flashcards.saveProgress());
+  document.getElementById('btn-resume-fc').addEventListener('click',  () => Views.flashcards.resumeProgress());
+  document.getElementById('btn-discard-fc-resume').addEventListener('click', () => {
+    Views.flashcards._clearProgress();
+    Views.flashcards.renderResumeCard();
+  });
+  document.getElementById('btn-fc-exit').addEventListener('click', () => {
+    const user = State.currentUser;
+    if (user) {
+      Modal.show({
+        title: 'Exit Flashcards',
+        body:  'Save your progress so you can resume this session later?',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Exit without saving', cls: 'btn-ghost', action: () => {
+            Views.flashcards._clearProgress();
+            Views.flashcards.exit();
+          }},
+          { label: '\ud83d\udcbe Save & Exit', cls: 'btn-primary', action: () => {
+            Views.flashcards.saveProgress();
+            Views.flashcards.exit();
+          }}
+        ]
+      });
+    } else {
+      Views.flashcards.exit();
+    }
   });
 
   // global keyboard for flashcards

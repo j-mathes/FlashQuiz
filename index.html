@@ -15,7 +15,7 @@
 <body>
   <!-- ── TOP NAV ─────────────────────────────────────────── -->
   <header class="app-header">
-    <div class="header-brand">
+    <div class="header-brand" data-view="home" role="button" tabindex="0" aria-label="FlashQuiz home">
       <span class="brand-icon">⚡</span>
       <span class="brand-name">FlashQuiz</span>
     </div>
@@ -284,6 +284,19 @@
       <div id="fc-selector" class="dataset-selector">
         <h2>Choose a Deck</h2>
         <div id="fc-deck-list" class="deck-picker-list"></div>
+        <div id="fc-resume-card" class="quiz-resume-card hidden">
+          <div id="fc-resume-deck-name" class="resume-deck-name"></div>
+          <div class="resume-body">
+            <span class="resume-icon">↩</span>
+            <div class="resume-info">
+              <span id="fc-resume-detail" class="text-muted"></span>
+            </div>
+            <div class="resume-actions">
+              <button id="btn-resume-fc" class="btn btn-primary btn-sm">Resume</button>
+              <button id="btn-discard-fc-resume" class="btn btn-ghost btn-sm">Discard</button>
+            </div>
+          </div>
+        </div>
         <div id="fc-level-filter" class="level-filter-panel hidden">
           <button id="btn-fc-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
           <h3 id="fc-lf-deck-name" class="lf-deck-name"></h3>
@@ -301,6 +314,7 @@
       <div id="fc-player" class="fc-player hidden">
         <div class="fc-top-bar">
           <button id="btn-fc-exit" class="btn btn-ghost">← Back</button>
+          <button id="btn-fc-save" class="btn btn-ghost hidden" title="Save progress to resume later">💾 Save</button>
           <span id="fc-progress" class="fc-progress"></span>
           <button id="btn-fc-restart" class="btn btn-ghost">↺ Restart</button>
         </div>
@@ -338,6 +352,7 @@
       <!-- step 1: pick a deck -->
       <div id="quiz-selector" class="dataset-selector">
         <h2>Choose a Deck</h2>
+        <div id="quiz-deck-list" class="deck-picker-list"></div>
         <div id="quiz-resume-card" class="quiz-resume-card hidden">
           <div id="resume-deck-name" class="resume-deck-name"></div>
           <div class="resume-body">
@@ -351,7 +366,6 @@
             </div>
           </div>
         </div>
-        <div id="quiz-deck-list" class="deck-picker-list"></div>
         <div id="quiz-level-filter" class="level-filter-panel hidden">
           <button id="btn-quiz-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
           <h3 id="quiz-lf-deck-name" class="lf-deck-name"></h3>

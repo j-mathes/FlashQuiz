@@ -256,6 +256,8 @@ select { cursor: pointer; }
   color: var(--clr-primary);
   white-space: nowrap;
   flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
 }
 .brand-icon { font-size: 1.4rem; }
 
@@ -1196,6 +1198,10 @@ select { cursor: pointer; }
 }
 .img-zoom-btn:hover { opacity: 1; }
 .cell-mixed-inline .img-zoom-wrap { flex-shrink: 0; }
+/* Hide the zoom button on whichever flashcard face is facing away */
+.fc-face.fc-back .img-zoom-btn { display: none; }
+.fc-card.flipped .fc-face.fc-front .img-zoom-btn { display: none; }
+.fc-card.flipped .fc-face.fc-back .img-zoom-btn { display: flex; }
 
 /* ── Image lightbox ──────────────────────────────────────── */
 .img-lightbox {
@@ -1316,7 +1322,7 @@ select { cursor: pointer; }
   background: var(--clr-primary-light);
   border: 1.5px solid var(--clr-primary);
   border-radius: var(--radius-lg);
-  margin-bottom: 1rem;
+  margin-top: 1rem;
 }
 .resume-deck-name { font-size: 1.05rem; font-weight: 700; }
 .resume-body { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
