@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.2.0';
+const APP_VERSION  = '4.2.1';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -5289,38 +5289,23 @@ document.addEventListener('DOMContentLoaded', function () {
     navigator.serviceWorker.register('./sw.js')
       .then(function (reg) {
         reg.addEventListener('updatefound', function () {
-          const newSW = reg.installing;
-          newSW.addEventListener('statechange', function () {
-            // Only notify on updates (not the very first install)
-            if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-              const c = document.getElementById('toast-container');
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', function () {
+            // 'installed' + existing controller = a new version is waiting (not first install)
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              document.querySelectorAll('.toast-update').forEach(el => el.remove());
               const t = document.createElement('div');
-              t.className = 'toast toast-info toast-persistent';
-
-              const text = document.createElement('span');
-              text.className = 'toast-text';
-              text.textContent = 'Update available';
-
-              const reload = document.createElement('button');
-              reload.className = 'toast-btn';
-              reload.title = 'Reload to apply update';
-              reload.textContent = '↺ Reload';
-              reload.addEventListener('click', () => window.location.reload());
-
-              const dismiss = document.createElement('button');
-              dismiss.className = 'toast-btn';
-              dismiss.title = 'Dismiss';
-              dismiss.textContent = '✕';
-              dismiss.addEventListener('click', () => {
-                t.classList.remove('toast-visible');
-                t.addEventListener('transitionend', () => t.remove(), { once: true });
+              t.className = 'toast-update';
+              t.textContent = 'Update available \u2014 tap to refresh';
+              t.setAttribute('role', 'button');
+              t.setAttribute('tabindex', '0');
+              t.setAttribute('aria-label', 'Update available \u2014 tap to refresh');
+              const reload = () => window.location.reload();
+              t.addEventListener('click', reload);
+              t.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reload(); }
               });
-
-              t.appendChild(text);
-              t.appendChild(reload);
-              t.appendChild(dismiss);
-              c.appendChild(t);
-              requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('toast-visible')));
+              document.body.appendChild(t);
             }
           });
         });

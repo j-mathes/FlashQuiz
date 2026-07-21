@@ -38,7 +38,7 @@ FlashQuiz is a Progressive Web App — install it for a full-screen, offline-cap
 
 ### App Version & Updates
 
-The installed cache version is shown at the bottom of the **Settings** page (`Version x.x.x · cache: flashquiz-vN`). When a new version is deployed, an **"Update available"** toast appears with a **↺ Reload** button.
+The installed cache version is shown at the bottom of the **Settings** page (`Version x.x.x · cache: flashquiz-vN`). When a new version is deployed, an **"Update available — tap to refresh"** toast appears at the bottom of the screen; click or tap it to reload instantly.
 
 ---
 
@@ -242,6 +242,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.2.1** | Update-available toast: fires at correct SW `installed` state, centered bottom-of-screen, full-toast click-to-reload, keyboard accessible |
 | **4.2.0** | Reports revamp: combined Attempts + Missed view with level filter and missed-only toggle; `Q #N` builder question numbering; image thumbnails in reports; stacked bar chart with By Round/Level and %/Count toggles; flashcard per-level viewing progress; configurable report row colours in Settings; builder level filter badges |
 | **4.1.0** | Reference field supports rich content (images, mixed text+image) in the builder, flashcard back, and quiz feedback; lightbox pan support (mouse drag, scroll-to-zoom, single-finger swipe) |
 | **4.0.0** | Initial release: Flashcard and Quiz modes, Quiz Builder, Image Library, level tags, Split/Combine decks, Bundle ZIP import/export, PWA support, user profiles, session reports, backup/restore |
