@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.3.3';
+const APP_VERSION  = '4.4.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -212,7 +212,7 @@ function renderCell(cell, container) {
     };
     const txt = document.createElement('p');
     txt.className   = 'cell-mixed-text';
-    txt.textContent = cell.text;
+    txt.innerHTML   = inlineMarkdown(cell.text);
     if (cell.imgPosition === 'inline') {
       const wrap = document.createElement('div');
       wrap.className = 'cell-mixed-inline';
@@ -227,7 +227,7 @@ function renderCell(cell, container) {
       container.appendChild(txt);
     }
   } else {
-    container.textContent = cell.text;
+    container.innerHTML = inlineMarkdown(cell.text);
   }
 }
 
@@ -238,6 +238,22 @@ function cellLabel(cell) {
   if (cell.type === 'local-image') return `[${cell.name}]`;
   if (cell.type === 'mixed') return `${cell.text}`;
   return cell.text;
+}
+
+/**
+ * Convert a plain-text cell string to safe inline HTML.
+ * Supports: **bold**, *italic*, `code`, ~~strikethrough~~, and \n line breaks.
+ * HTML is escaped first so no raw markup can slip through.
+ */
+function inlineMarkdown(text) {
+  if (!text) return '';
+  let s = esc(text);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+  s = s.replace(/`([^`]+)`/g,     '<code>$1</code>');
+  s = s.replace(/~~(.+?)~~/g,     '<del>$1</del>');
+  s = s.replace(/\n/g,            '<br>');
+  return s;
 }
 
 /** Display image src for a cell, or null if the cell has no image. */

@@ -76,6 +76,27 @@ The first row must be a header beginning with `Level`. Decks exported from the b
 | Local Library reference | `[LOCAL:filename.jpg]` |
 | Mixed (text + image) | Image tag on first line = image above; text on first line = image below |
 
+### Inline text formatting
+
+Supported in any text field (question, answer, wrong answer, reference) — in the builder and in CSV/Excel cells:
+
+| Syntax | Result |
+|---|---|
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `***bold and italic***` | ***bold and italic*** |
+| `` `code` `` | `code` |
+| `~~strikethrough~~` | ~~strikethrough~~ |
+| newline in cell | line break |
+
+Formatting is applied when the card is displayed, not in the editor. Example CSV cell:
+
+```
+The heart has **four chambers**:
+*right atrium*, *left atrium*
+*right ventricle*, *left ventricle*
+```
+
 ---
 
 ## Features
@@ -241,6 +262,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.4.0** | Inline text formatting in questions, answers, and references: `**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`; line breaks (`\n`) now render visually |
 | **4.3.3** | Dark mode fixes: home-screen tile icons brightened for visibility; builder level-filter “All” button now uses primary colour theming in both light and dark mode; report user chip styled as a bordered pill |
 | **4.3.2** | Date/time format changed to `YYYY-MM-DD HH:mm` throughout; report session rows reordered to Name → Deck → Mode → Date → Time → Score |
 | **4.3.1** | Resume cards appear below the deck list; FlashQuiz logo navigates to home screen; crash fix (stray brace in object literal) |
