@@ -241,6 +241,8 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.3.3** | Dark mode fixes: home-screen tile icons brightened for visibility; builder level-filter “All” button now uses primary colour theming in both light and dark mode; report user chip styled as a bordered pill |
+| **4.3.2** | Date/time format changed to `YYYY-MM-DD HH:mm` throughout; report session rows reordered to Name → Deck → Mode → Date → Time → Score |
 | **4.3.1** | Resume cards appear below the deck list; FlashQuiz logo navigates to home screen; crash fix (stray brace in object literal) |
 | **4.3.0** | Flashcard Save & Resume — signed-in users can save mid-session progress and resume later from the same card (mirrors quiz behaviour) |
 | **4.2.3** | PWA update toast uses `controllerchange` for reliable detection on iOS Safari; zoom button hidden on the non-visible flashcard face |

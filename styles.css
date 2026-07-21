@@ -392,6 +392,7 @@ select { cursor: pointer; }
   border-color: var(--clr-primary);
 }
 .hc-icon  { font-size: 2rem; }
+body.theme-dark .hc-icon { filter: brightness(1.6) drop-shadow(0 0 2px rgba(255,255,255,.15)); }
 .hc-title { font-size: 1rem; font-weight: 700; }
 .hc-desc  { font-size: .8rem; color: var(--clr-text-muted); text-align: center; }
 
@@ -731,10 +732,11 @@ select { cursor: pointer; }
   margin-bottom: .65rem;
 }
 .bld-lf-all {
-  background: var(--clr-surface-2, #e9ecef) !important;
-  color: var(--clr-text) !important;
-  border: 1.5px solid var(--clr-border);
+  background: var(--clr-primary-light) !important;
+  color: var(--clr-primary-dark) !important;
+  border: 1.5px solid var(--clr-primary);
 }
+body.theme-dark .bld-lf-all { color: #c7d2fe !important; }
 .builder-search-input {
   flex: 1 1 200px;
   max-width: 360px;
@@ -1770,8 +1772,19 @@ button.level-badge {
 }
 .badge-quiz      { background: var(--clr-primary-light); color: var(--clr-primary-dark); }
 .badge-flashcard { background: #e0f2fe; color: #0369a1; }
+.report-user {
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .2em .6em;
+  border-radius: var(--radius-full);
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text);
+  white-space: nowrap;
+}
 .report-name { font-weight: 700; flex: 1; }
-.report-date { font-size: .8rem; color: var(--clr-text-muted); }
+.report-date { font-size: .8rem; color: var(--clr-text-muted); white-space: nowrap; }
+.report-time { font-size: .8rem; color: var(--clr-text-muted); white-space: nowrap; }
 .report-score-pill {
   font-weight: 700;
   font-size: .85rem;

@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.3.1';
+const APP_VERSION  = '4.3.3';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -68,12 +68,20 @@ function shuffle(arr) {
 }
 
 function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const d = new Date(iso);
+  const y  = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${dy}`;
+}
+function fmtTime(iso) {
+  const d  = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 function fmtDateTime(iso) {
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
+  return `${fmtDate(iso)} ${fmtTime(iso)}`;
 }
 
 /**
@@ -4440,10 +4448,11 @@ Views.reports = {
 
       div.innerHTML = `
         <div class="report-item-header">
-          <span class="report-mode-badge ${isQuiz ? 'badge-quiz' : 'badge-flashcard'}">${isQuiz ? 'Quiz' : 'Flashcards'}</span>
+          <span class="report-user">${esc(s.userName || 'Anonymous')}</span>
           <span class="report-name">${esc(s.datasetName || 'Unknown')}</span>
-          <span class="report-date">${fmtDateTime(s.startedAt)}</span>
-          <span class="text-muted" style="font-size:.85rem">${esc(s.userName || 'Anonymous')}</span>
+          <span class="report-mode-badge ${isQuiz ? 'badge-quiz' : 'badge-flashcard'}">${isQuiz ? 'Quiz' : 'Flashcards'}</span>
+          <span class="report-date">${fmtDate(s.startedAt)}</span>
+          <span class="report-time">${fmtTime(s.startedAt)}</span>
           ${levelTag}
           ${scoreHtml}
           <span class="report-expand-arrow">›</span>
