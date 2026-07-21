@@ -2526,6 +2526,7 @@ body.theme-dark .rpt-missed-correct  { color: #86efac; }
   margin: .35rem 0 0;
   font-size: inherit;
   line-height: 1.4;
+  color: inherit;
 }
 .cell-mixed-inline {
   display: flex;

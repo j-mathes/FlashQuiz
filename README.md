@@ -262,6 +262,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.5.2** | Fix: reference text with an image (mixed cell) now inherits the correct colour on the flashcard back face instead of rendering in the global paragraph colour |
 | **4.5.1** | Builder preview fixes: card now flips correctly; Space/Enter works immediately on open and after tab switch; digit keys 1–9 select quiz choices; switching tabs resets both panes; on portrait mobile the card header reflows to two rows (identity top, actions bottom) |
 | **4.5.0** | Builder question preview: a 👁 button beside each question number opens a full-fidelity modal preview in Flashcard mode (flip animation, reference) or Quiz mode (shuffled choices, answer feedback, reference reveal) — no session data is recorded |
 | **4.4.0** | Inline text formatting in questions, answers, and references: `**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`; line breaks (`\n`) now render visually |
