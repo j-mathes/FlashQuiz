@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.2.1';
+const APP_VERSION  = '4.2.2';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -1248,7 +1248,8 @@ const LevelFilter = {
       b.style.color        = contrastColor(lv.color);
       b.dataset.level      = lv.name;
       b.dataset.selected   = '1';
-      b.addEventListener('click', () => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
         const on = b.dataset.selected !== '1';
         b.dataset.selected = on ? '1' : '0';
         b.classList.toggle('lf-badge-off', !on);
@@ -1265,7 +1266,8 @@ const LevelFilter = {
       b.textContent      = `Unlabeled (${unlabeled.length})`;
       b.dataset.noLevel  = '1';
       b.dataset.selected = '1';
-      b.addEventListener('click', () => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
         const on = b.dataset.selected !== '1';
         b.dataset.selected = on ? '1' : '0';
         b.classList.toggle('lf-badge-off', !on);

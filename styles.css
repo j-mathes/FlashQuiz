@@ -1777,6 +1777,15 @@ button.level-badge {
 .report-expand-arrow { color: var(--clr-text-muted); transition: transform var(--transition); }
 .report-item.open .report-expand-arrow { transform: rotate(90deg); }
 
+@media (orientation: portrait) and (max-width: 640px) {
+  .report-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .35rem;
+  }
+  .report-name { flex: none; }
+}
+
 .report-detail {
   display: none;
   padding: .5rem 1.1rem 1rem;

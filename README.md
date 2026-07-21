@@ -242,6 +242,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.2.2** | Bug fixes: report session rows stack vertically on portrait mobile; level-select badges restored to independent multi-select (checkbox) behaviour; nav bar and home-screen tile order unified to Home → Flashcards → Quiz → Data → Builder → Reports → Settings → Users |
 | **4.2.1** | Update-available toast: fires at correct SW `installed` state, centered bottom-of-screen, full-toast click-to-reload, keyboard accessible |
 | **4.2.0** | Reports revamp: combined Attempts + Missed view with level filter and missed-only toggle; `Q #N` builder question numbering; image thumbnails in reports; stacked bar chart with By Round/Level and %/Count toggles; flashcard per-level viewing progress; configurable report row colours in Settings; builder level filter badges |
 | **4.1.0** | Reference field supports rich content (images, mixed text+image) in the builder, flashcard back, and quiz feedback; lightbox pan support (mouse drag, scroll-to-zoom, single-finger swipe) |
