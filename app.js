@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.4.0';
+const APP_VERSION  = '4.5.0';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -2152,6 +2152,7 @@ Views.builder = {
           ${(State.bld.draft?.levels?.length ?? 0) > 0 ? `<input type="checkbox" class="q-select-cb" title="Select (Shift+click for range)" ${State.bld.selectedIds.has(row.id) ? 'checked' : ''}>` : ''}
           <span class="builder-q-num">Q ${idx + 1}</span>
           ${levelPickerHtml}
+          <button class="btn btn-secondary btn-sm" data-role="preview-q" title="Preview this question">👁 Preview</button>
         </div>
         <button class="btn btn-danger btn-sm" data-role="del-q">✕ Remove</button>
       </div>
@@ -2230,6 +2231,11 @@ Views.builder = {
 
   wireCard(card, row, idx) {
     const rows = State.bld.draft.rows;
+
+    card.querySelector('[data-role="preview-q"]').addEventListener('click', e => {
+      e.stopPropagation();
+      Views.builder.previewQuestion(row, idx);
+    });
 
     card.querySelector('[data-role="del-q"]').addEventListener('click', () => {
       Modal.confirm('Remove Question', 'Remove this question?', () => {
@@ -2699,6 +2705,176 @@ Views.builder = {
     State.bld.editingId = null;
     document.getElementById('builder-editor').classList.add('hidden');
     Views.builder.renderDeckList();
+  },
+
+  async previewQuestion(row, idx) {
+    // Resolve [LOCAL:name] references to real data URIs before rendering
+    const [resolved] = await resolveLocalImages([row]);
+    const levels = State.bld.draft?.levels || [];
+    const lv = levels.find(l => l.name === resolved.level);
+    const refCell = resolved.referenceCell ?? parseCell(resolved.reference || '') ?? null;
+    const levelBadgeHtml = lv
+      ? `<span class="level-badge" style="background:${esc(lv.color)};color:${contrastColor(lv.color)};display:inline-flex">${esc(lv.name)}</span>`
+      : '';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'preview-wrap';
+    wrap.innerHTML = `
+      <div class="preview-tabs" role="tablist">
+        <button class="preview-tab active" data-ptab="flashcard">🃏 Flashcard</button>
+        <button class="preview-tab" data-ptab="quiz">✏️ Quiz</button>
+      </div>
+      <div class="preview-pane" data-ppane="flashcard"></div>
+      <div class="preview-pane preview-pane-hidden" data-ppane="quiz"></div>`;
+
+    // ── Flashcard pane ──────────────────────────────────────────
+    const fcPane = wrap.querySelector('[data-ppane="flashcard"]');
+    fcPane.innerHTML = `
+      <p class="preview-hint">Click the card to flip</p>
+      <div class="fc-card preview-fc-card" tabindex="0" role="button" aria-label="Flip card">
+        <div class="fc-card-inner" id="pv-fc-inner">
+          <div class="fc-face fc-front">
+            <div class="fc-card-top">
+              <div class="fc-label-badge">Question</div>
+              ${levelBadgeHtml}
+            </div>
+            <div class="fc-content" id="pv-fc-front"></div>
+            <div class="fc-hint">Click or press Space to reveal</div>
+          </div>
+          <div class="fc-face fc-back">
+            <div class="fc-label-badge fc-back-badge">Answer</div>
+            <div class="fc-content" id="pv-fc-back"></div>
+            <div id="pv-fc-ref" class="fc-back-reference hidden"></div>
+          </div>
+        </div>
+      </div>`;
+
+    // ── Quiz pane ───────────────────────────────────────────────
+    const qzPane = wrap.querySelector('[data-ppane="quiz"]');
+    const choices = shuffle([
+      { cell: resolved.correctAnswer, correct: true },
+      ...resolved.wrongAnswers.map(w => ({ cell: w, correct: false }))
+    ]);
+    if (!choices.some(c => c.correct)) {
+      qzPane.innerHTML = '<p class="preview-hint">Add at least one wrong answer to preview quiz mode.</p>';
+    } else {
+      qzPane.innerHTML = `
+        <div class="question-content" id="pv-qz-q" style="margin-bottom:.85rem"></div>
+        <div class="quiz-choices" id="pv-qz-choices">
+          ${choices.map((c, i) => `
+            <button class="choice-btn" data-correct="${c.correct}" data-ci="${i}">
+              <span class="choice-letter">${i + 1}</span>
+              <span class="choice-content" id="pv-choice-${i}"></span>
+            </button>`).join('')}
+        </div>
+        <div id="pv-qz-feedback" class="quiz-feedback hidden">
+          <div id="pv-fb-msg" class="feedback-msg"></div>
+          ${refCell ? '<div id="pv-fb-ref" class="feedback-reference hidden"></div>' : ''}
+        </div>`;
+    }
+
+    Modal.show({
+      title: `👁 Preview — Q ${idx + 1}`,
+      body:  wrap,
+      wide:  true,
+      buttons: [{ label: 'Close' }]
+    });
+
+    // Focus the card on first open so Space/Enter flips immediately
+    requestAnimationFrame(() => fcPane.querySelector('.preview-fc-card')?.focus());
+
+    // Render flashcard cells
+    renderCell(resolved.question,       document.getElementById('pv-fc-front'));
+    renderCell(resolved.correctAnswer,  document.getElementById('pv-fc-back'));
+    if (refCell) {
+      const refEl = document.getElementById('pv-fc-ref');
+      renderCell(refCell, refEl);
+      refEl.classList.remove('hidden');
+    }
+
+    // Flashcard flip — toggle 'flipped' on the outer .fc-card (CSS targets .fc-card.flipped)
+    const fcCard = fcPane.querySelector('.preview-fc-card');
+    const doFlip = () => fcCard.classList.toggle('flipped');
+    fcCard.addEventListener('click', doFlip);
+    fcCard.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); doFlip(); }
+    });
+
+    // Render quiz question + choices
+    const qzQ = document.getElementById('pv-qz-q');
+    if (qzQ) {
+      renderCell(resolved.question, qzQ);
+      choices.forEach((c, i) => {
+        const el = document.getElementById(`pv-choice-${i}`);
+        if (el) renderCell(c.cell, el);
+      });
+
+      // Quiz answer interaction
+      const feedback = document.getElementById('pv-qz-feedback');
+      qzPane.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          const correct = btn.dataset.correct === 'true';
+          qzPane.querySelectorAll('.choice-btn').forEach(b => {
+            b.classList.add(b.dataset.correct === 'true' ? 'correct' : 'wrong');
+            b.disabled = true;
+          });
+          const msgEl = document.getElementById('pv-fb-msg');
+          msgEl.textContent = correct ? '✅ Correct!' : '❌ Incorrect';
+          msgEl.className   = `feedback-msg ${correct ? 'correct' : 'wrong'}`;
+          feedback.classList.remove('hidden');
+          const fbRef = document.getElementById('pv-fb-ref');
+          if (fbRef && refCell) {
+            renderCell(refCell, fbRef);
+            fbRef.classList.remove('hidden');
+          }
+        });
+      });
+
+      // Quiz keyboard: digit keys 1–9 select answers
+      const pickChoice = idx => {
+        const btn = qzPane.querySelectorAll('.choice-btn')[idx];
+        if (btn && !btn.disabled) btn.click();
+      };
+      wrap.addEventListener('keydown', e => {
+        if (wrap.closest('#modal-overlay')?.classList.contains('hidden')) return;
+        const n = parseInt(e.key, 10);
+        if (!isNaN(n) && n >= 1 && n <= choices.length &&
+            !qzPane.classList.contains('preview-pane-hidden')) {
+          e.preventDefault();
+          pickChoice(n - 1);
+        }
+      });
+    }
+
+    // Tab switching — reset both panes on each switch; move focus to the interactive element
+    wrap.querySelectorAll('.preview-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        wrap.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        wrap.querySelectorAll('.preview-pane').forEach(p =>
+          p.classList.toggle('preview-pane-hidden', p.dataset.ppane !== tab.dataset.ptab)
+        );
+        // Reset flashcard to front face
+        fcCard.classList.remove('flipped');
+        // Reset quiz choices and feedback
+        qzPane.querySelectorAll('.choice-btn').forEach(b => {
+          b.classList.remove('correct', 'wrong');
+          b.disabled = false;
+        });
+        const fb = document.getElementById('pv-qz-feedback');
+        if (fb) fb.classList.add('hidden');
+        // Move focus so Space/Enter and digit keys work immediately
+        requestAnimationFrame(() => {
+          if (tab.dataset.ptab === 'flashcard') {
+            fcCard.focus();
+          } else {
+            const first = qzPane.querySelector('.choice-btn:not(:disabled)');
+            if (first) first.focus();
+          }
+        });
+      });
+    });
   },
 
   async saveAsCopy() {

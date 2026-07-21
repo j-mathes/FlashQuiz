@@ -262,6 +262,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.5.0** | Builder question preview: a 👁 button beside each question number opens a full-fidelity modal preview in Flashcard mode (flip animation, reference) or Quiz mode (shuffled choices, answer feedback, reference reveal) — no session data is recorded |
 | **4.4.0** | Inline text formatting in questions, answers, and references: `**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`; line breaks (`\n`) now render visually |
 | **4.3.3** | Dark mode fixes: home-screen tile icons brightened for visibility; builder level-filter “All” button now uses primary colour theming in both light and dark mode; report user chip styled as a bordered pill |
 | **4.3.2** | Date/time format changed to `YYYY-MM-DD HH:mm` throughout; report session rows reordered to Name → Deck → Mode → Date → Time → Score |
