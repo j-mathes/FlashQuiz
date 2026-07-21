@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.5.0';
+const APP_VERSION  = '4.5.1';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -2152,8 +2152,8 @@ Views.builder = {
           ${(State.bld.draft?.levels?.length ?? 0) > 0 ? `<input type="checkbox" class="q-select-cb" title="Select (Shift+click for range)" ${State.bld.selectedIds.has(row.id) ? 'checked' : ''}>` : ''}
           <span class="builder-q-num">Q ${idx + 1}</span>
           ${levelPickerHtml}
-          <button class="btn btn-secondary btn-sm" data-role="preview-q" title="Preview this question">👁 Preview</button>
         </div>
+        <button class="btn btn-secondary btn-sm" data-role="preview-q" title="Preview this question">👁 Preview</button>
         <button class="btn btn-danger btn-sm" data-role="del-q">✕ Remove</button>
       </div>
 

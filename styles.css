@@ -1849,6 +1849,21 @@ button.level-badge {
     gap: .35rem;
   }
   .report-name { flex: none; }
+
+  /* Builder card header: identity row on top, action buttons below */
+  .builder-q-card-header {
+    flex-wrap: wrap;
+    row-gap: .4rem;
+  }
+  .builder-q-header-left {
+    flex: 1 1 100%;
+    order: 1;
+  }
+  .builder-q-card-header > [data-role="preview-q"],
+  .builder-q-card-header > [data-role="del-q"] {
+    order: 2;
+    flex: 1;
+  }
 }
 
 .report-detail {
