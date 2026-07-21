@@ -629,7 +629,7 @@ const State = {
     startedAt: null,
   },
   // builder
-  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, filterMissingLevels: false, searchText: '', selectedIds: new Set(), lastCheckedId: null }
+  bld: { editingId: null, filterMissingImgs: false, missingImgIds: null, filterMissingLevels: false, filterLevels: new Set(), searchText: '', selectedIds: new Set(), lastCheckedId: null }
 };
 // levels are stored on State.fc.levels / State.qz.levels when a deck is loaded
 
@@ -1889,6 +1889,7 @@ Views.builder = {
     State.bld.filterMissingImgs   = false;
     State.bld.missingImgIds       = null;
     State.bld.filterMissingLevels = false;
+    State.bld.filterLevels        = new Set();
     State.bld.searchText          = '';
     const searchInput = document.getElementById('builder-search-input');
     if (searchInput) searchInput.value = '';
@@ -1915,7 +1916,61 @@ Views.builder = {
   renderQuestions() {
     const container = document.getElementById('builder-questions-list');
     container.innerHTML = '';
-    const rows = State.bld.draft.rows;
+    const rows   = State.bld.draft.rows;
+    const levels = State.bld.draft.levels || [];
+    const levelNames = new Set(levels.map(l => l.name));
+
+    // ── Level filter badge row ──
+    const lfEl = document.getElementById('builder-level-filter');
+    if (lfEl) {
+      lfEl.innerHTML = '';
+      if (levels.length) {
+        lfEl.classList.remove('hidden');
+        const hasUntagged = rows.some(r => !r.level || !levelNames.has(r.level));
+        // Prune stale '' entry if no untagged rows exist
+        if (!hasUntagged) State.bld.filterLevels.delete('');
+
+        const allActive = State.bld.filterLevels.size === 0;
+        const allBtn = document.createElement('button');
+        allBtn.className = 'level-badge lf-badge-toggle bld-lf-all' + (allActive ? '' : ' lf-badge-off');
+        allBtn.textContent = 'All';
+        allBtn.addEventListener('click', e => { e.stopPropagation(); State.bld.filterLevels = new Set(); Views.builder.renderQuestions(); });
+        lfEl.appendChild(allBtn);
+
+        levels.forEach(l => {
+          const on  = State.bld.filterLevels.size === 0 || State.bld.filterLevels.has(l.name);
+          const btn = document.createElement('button');
+          btn.className = 'level-badge lf-badge-toggle' + (on ? '' : ' lf-badge-off');
+          btn.style.background = l.color;
+          btn.style.color      = contrastColor(l.color);
+          btn.textContent      = l.name;
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (State.bld.filterLevels.has(l.name)) State.bld.filterLevels.delete(l.name);
+            else                                     State.bld.filterLevels.add(l.name);
+            Views.builder.renderQuestions();
+          });
+          lfEl.appendChild(btn);
+        });
+
+        if (hasUntagged) {
+          const on  = State.bld.filterLevels.size === 0 || State.bld.filterLevels.has('');
+          const btn = document.createElement('button');
+          btn.className = 'lf-badge-toggle lf-badge-unlabeled' + (on ? '' : ' lf-badge-off');
+          btn.textContent = 'Unlabeled';
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (State.bld.filterLevels.has('')) State.bld.filterLevels.delete('');
+            else                                State.bld.filterLevels.add('');
+            Views.builder.renderQuestions();
+          });
+          lfEl.appendChild(btn);
+        }
+      } else {
+        lfEl.classList.add('hidden');
+        State.bld.filterLevels = new Set();
+      }
+    }
 
     if (!rows.length) {
       container.innerHTML = `<div class="empty-state"><p>No questions yet. Click <strong>+ Add Question</strong>.</p></div>`;
@@ -1923,9 +1978,7 @@ Views.builder = {
       return;
     }
 
-    const missingIds   = State.bld.missingImgIds;
-    const levels        = State.bld.draft.levels || [];
-    const levelNames    = new Set(levels.map(l => l.name));
+    const missingIds = State.bld.missingImgIds;
 
     let filtered = rows.map((row, idx) => ({ row, idx }));
     if (State.bld.filterMissingImgs) {
@@ -1933,6 +1986,9 @@ Views.builder = {
     }
     if (State.bld.filterMissingLevels) {
       filtered = filtered.filter(({ row }) => !row.level || !levelNames.has(row.level));
+    }
+    if (State.bld.filterLevels.size > 0) {
+      filtered = filtered.filter(({ row }) => State.bld.filterLevels.has(row.level || ''));
     }
     const needle = State.bld.searchText.trim().toLowerCase();
     if (needle) {
@@ -1953,13 +2009,16 @@ Views.builder = {
     }
 
     if (!filtered.length) {
+      const lvlActive = State.bld.filterLevels.size > 0;
       const reason = needle
         ? `No questions match "${esc(needle)}".`
-        : State.bld.filterMissingImgs && State.bld.filterMissingLevels
-          ? 'No questions match both filters.'
-          : State.bld.filterMissingImgs
-            ? 'No questions match \u2014 every question has an image. \ud83c\udf89'
-            : 'No questions match \u2014 every question has a level assigned. \ud83c\udf89';
+        : lvlActive
+          ? 'No questions match the selected level filter.'
+          : State.bld.filterMissingImgs && State.bld.filterMissingLevels
+            ? 'No questions match both filters.'
+            : State.bld.filterMissingImgs
+              ? 'No questions match \u2014 every question has an image. \ud83c\udf89'
+              : 'No questions match \u2014 every question has a level assigned. \ud83c\udf89';
       container.innerHTML = `<div class="empty-state"><p>${reason}</p></div>`;
       Views.builder.updateBulkBar();
       return;

@@ -105,6 +105,7 @@ Build or edit decks in the app. Each field — question, correct answer, wrong a
 
 #### Search & Filters
 - **Search bar** — filters questions in real time; a result count is shown while active
+- **Level filter** — when the deck has levels, coloured level badges appear below the search bar; all are active by default. Click a badge to show only questions from that level; click additional badges to add them; click **All** to reset. An **Unlabeled** button appears when any questions have no level assigned. The level filter stacks with all other filters.
 - **Missing Images** — shows only questions with broken image references; highlights when active
 - **Missing Levels** — shows only questions with no level or a deleted level; both filters can be active simultaneously
 
@@ -241,7 +242,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
-| **4.2.0** | Reports revamp: combined Attempts + Missed view with level filter and missed-only toggle; `Q #N` builder question numbering; image thumbnails in reports; stacked bar chart with By Round/Level and %/Count toggles; flashcard per-level viewing progress; configurable report row colours in Settings |
+| **4.2.0** | Reports revamp: combined Attempts + Missed view with level filter and missed-only toggle; `Q #N` builder question numbering; image thumbnails in reports; stacked bar chart with By Round/Level and %/Count toggles; flashcard per-level viewing progress; configurable report row colours in Settings; builder level filter badges |
 | **4.1.0** | Reference field supports rich content (images, mixed text+image) in the builder, flashcard back, and quiz feedback; lightbox pan support (mouse drag, scroll-to-zoom, single-finger swipe) |
 | **4.0.0** | Initial release: Flashcard and Quiz modes, Quiz Builder, Image Library, level tags, Split/Combine decks, Bundle ZIP import/export, PWA support, user profiles, session reports, backup/restore |
 
