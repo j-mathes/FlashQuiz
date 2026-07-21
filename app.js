@@ -4406,14 +4406,14 @@ Views.reports = {
       summaryHtml += '</div>';
     }
 
-    // Level filter buttons
+    // Level filter buttons — all start active (multi-select toggles)
     const filterHtml = levels.length
       ? `<div class="rpt-level-filter">
           <button class="rpt-lvl-btn active" data-lvl="">All</button>
           ${levels.map(l => {
             const def   = lev.find(lv => lv.name === l);
             const style = def ? `style="background:${esc(def.color)};color:${esc(contrastColor(def.color))}"` : '';
-            return `<button class="rpt-lvl-btn level-badge" data-lvl="${esc(l)}" ${style}>${esc(l)}</button>`;
+            return `<button class="rpt-lvl-btn level-badge active" data-lvl="${esc(l)}" ${style}>${esc(l)}</button>`;
           }).join('')}
         </div>` : '';
 
@@ -4426,16 +4426,18 @@ Views.reports = {
       </div>
       <div class="rpt-attempts-list"></div>`;
 
-    const renderAttempts = (lvlFilter, missedOnly) => {
+    const renderAttempts = (activeLevels, missedOnly) => {
       rowIdx = 0;
-      const all    = session.attempts;
+      const all        = session.attempts;
+      const allSelected = activeLevels.size === levels.length;
       const shown  = all.filter(a =>
-        (!lvlFilter || a.level === lvlFilter) && (!missedOnly || !a.correct)
+        (allSelected || (a.level && activeLevels.has(a.level))) && (!missedOnly || !a.correct)
       );
       const rounds = [...new Set(shown.map(a => a.round))].sort((a, b) => a - b);
       let html = '';
       if (!shown.length) {
-        html = `<p class="rpt-empty-note">No ${missedOnly ? 'missed ' : ''}questions${lvlFilter ? ` for level \u201c${esc(lvlFilter)}\u201d` : ''}.</p>`;
+        const selNames = [...activeLevels].map(n => `\u201c${esc(n)}\u201d`).join(', ');
+        html = `<p class="rpt-empty-note">No ${missedOnly ? 'missed ' : ''}questions${!allSelected ? ` for level${activeLevels.size !== 1 ? 's' : ''} ${selNames}` : ''}.</p>`;
       } else {
         rounds.forEach(rn => {
           const fullRound = all.filter(a => a.round === rn);
@@ -4473,22 +4475,36 @@ Views.reports = {
       pane.querySelector('.rpt-attempts-list').innerHTML = html;
     };
 
-    let activeLevel = '', missedOnly = false;
+    let activeLevels = new Set(levels); // all selected by default
+    let missedOnly = false;
     let rowIdx = 0;
-    renderAttempts('', false);
+    renderAttempts(activeLevels, false);
 
     pane.querySelectorAll('.rpt-lvl-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        pane.querySelectorAll('.rpt-lvl-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        activeLevel = btn.dataset.lvl;
-        renderAttempts(activeLevel, missedOnly);
+        const lvl = btn.dataset.lvl;
+        if (lvl === '') {
+          // "All" — reset to every level selected
+          activeLevels = new Set(levels);
+        } else {
+          if (activeLevels.has(lvl)) {
+            activeLevels.delete(lvl);
+            if (activeLevels.size === 0) activeLevels = new Set(levels); // if last deselected, reset to all
+          } else {
+            activeLevels.add(lvl);
+          }
+        }
+        const allSelected = activeLevels.size === levels.length;
+        pane.querySelectorAll('.rpt-lvl-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.lvl === '' ? allSelected : activeLevels.has(b.dataset.lvl));
+        });
+        renderAttempts(activeLevels, missedOnly);
       });
     });
 
     pane.querySelector('.rpt-missed-only').addEventListener('change', e => {
       missedOnly = e.target.checked;
-      renderAttempts(activeLevel, missedOnly);
+      renderAttempts(activeLevels, missedOnly);
     });
   },
 

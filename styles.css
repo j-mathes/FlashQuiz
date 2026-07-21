@@ -1927,8 +1927,8 @@ body.theme-dark .attempt-hint-correct { color: #86efac; }
   border-color: var(--clr-primary);
   color: var(--clr-primary-dark);
 }
-.rpt-lvl-btn.level-badge { opacity: .65; }
-.rpt-lvl-btn.level-badge.active { opacity: 1; outline: 2px solid var(--clr-primary); outline-offset: 1px; }
+.rpt-lvl-btn.level-badge { opacity: .3; text-decoration: line-through; }
+.rpt-lvl-btn.level-badge.active { opacity: 1; text-decoration: none; outline: 2px solid var(--clr-primary); outline-offset: 1px; }
 .rpt-missed-item {
   padding: .55rem 0;
   border-bottom: 1px solid var(--clr-bg);
