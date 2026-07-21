@@ -1938,7 +1938,7 @@ Views.builder = {
         lfEl.appendChild(allBtn);
 
         levels.forEach(l => {
-          const on  = State.bld.filterLevels.size === 0 || State.bld.filterLevels.has(l.name);
+          const on  = !State.bld.filterLevels.has(l.name);
           const btn = document.createElement('button');
           btn.className = 'level-badge lf-badge-toggle' + (on ? '' : ' lf-badge-off');
           btn.style.background = l.color;
@@ -1954,7 +1954,7 @@ Views.builder = {
         });
 
         if (hasUntagged) {
-          const on  = State.bld.filterLevels.size === 0 || State.bld.filterLevels.has('');
+          const on  = !State.bld.filterLevels.has('');
           const btn = document.createElement('button');
           btn.className = 'lf-badge-toggle lf-badge-unlabeled' + (on ? '' : ' lf-badge-off');
           btn.textContent = 'Unlabeled';
@@ -1988,7 +1988,7 @@ Views.builder = {
       filtered = filtered.filter(({ row }) => !row.level || !levelNames.has(row.level));
     }
     if (State.bld.filterLevels.size > 0) {
-      filtered = filtered.filter(({ row }) => State.bld.filterLevels.has(row.level || ''));
+      filtered = filtered.filter(({ row }) => !State.bld.filterLevels.has(row.level || ''));
     }
     const needle = State.bld.searchText.trim().toLowerCase();
     if (needle) {
