@@ -1085,7 +1085,7 @@ body.theme-dark .bld-lf-all { color: #c7d2fe !important; }
   padding: 2rem 1.5rem;
   min-height: 280px;
   box-shadow: var(--shadow-lg);
-  text-align: center;
+  text-align: left;
 }
 .fc-front {
   background: var(--clr-surface);
@@ -1142,7 +1142,7 @@ body.theme-dark .bld-lf-all { color: #c7d2fe !important; }
   line-height: 1.5;
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   width: 100%;
   flex-direction: column;
