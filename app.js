@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.5.2';
+const APP_VERSION  = '4.5.3';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -2020,10 +2020,12 @@ Views.builder = {
     if (needle) {
       filtered = filtered.filter(({ row }) => {
         const getText = cell => (cell && (cell.type === 'text' || cell.type === 'mixed') ? (cell.text || '') : '');
+        const refCell = row.referenceCell ?? (typeof row.reference === 'string' ? parseCell(row.reference) : row.reference);
         const haystack = [
           getText(row.question),
           getText(row.correctAnswer),
           ...(row.wrongAnswers || []).map(getText),
+          getText(refCell),
         ].join('\n').toLowerCase();
         return haystack.includes(needle);
       });
@@ -3153,7 +3155,8 @@ Views.builder.split = {
 
     let filtered = needle
       ? ds.rows.filter(r => {
-          const haystack = [r.question, r.correctAnswer, ...(r.wrongAnswers || [])]
+          const refCell = r.referenceCell ?? (typeof r.reference === 'string' ? parseCell(r.reference) : r.reference);
+          const haystack = [r.question, r.correctAnswer, ...(r.wrongAnswers || []), refCell]
             .map(cellLabel).join(' ').toLowerCase();
           return haystack.includes(needle);
         })
