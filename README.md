@@ -87,7 +87,10 @@ Supported in any text field (question, answer, wrong answer, reference) — in t
 | `***bold and italic***` | ***bold and italic*** |
 | `` `code` `` | `code` |
 | `~~strikethrough~~` | ~~strikethrough~~ |
+| `__underline__` | underline |
 | newline in cell | line break |
+
+Markers can be nested in any order to combine effects — e.g. `__**bold underline**__`, `***__bold, italic & underline__***`.
 
 Formatting is applied when the card is displayed, not in the editor. Example CSV cell:
 
@@ -262,6 +265,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.5.5** | Inline text formatting: added `__underline__` syntax |
 | **4.5.4** | Flashcard question and answer text is now left-justified, consistent with quiz mode |
 | **4.5.3** | Builder search now includes reference field text; Split deck search likewise |
 | **4.5.2** | Fix: reference text with an image (mixed cell) now inherits the correct colour on the flashcard back face instead of rendering in the global paragraph colour |

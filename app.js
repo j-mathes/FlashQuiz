@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.5.4';
+const APP_VERSION  = '4.5.5';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -468,6 +468,7 @@ async function exportBundle(ds, filename, bundleFmt = 'csv') {
     collectCell(r.question);
     collectCell(r.correctAnswer);
     (r.wrongAnswers || []).forEach(collectCell);
+    if (r.reference && typeof r.reference === 'object') collectCell(r.reference);
   });
 
   const zip = new window.JSZip();
