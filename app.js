@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.5.5';
+const APP_VERSION  = '4.6.5';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -227,7 +227,13 @@ function renderCell(cell, container) {
       container.appendChild(txt);
     }
   } else {
-    container.innerHTML = inlineMarkdown(cell.text);
+    // Wrap in a <span> so the entire inline content is a single flex item when
+    // the container uses display:flex (e.g. .question-content). Without the
+    // wrapper, each text node and inline element (<strong>, <em> …) becomes its
+    // own anonymous flex item, creating unwanted line breaks around bold/italic.
+    const span = document.createElement('span');
+    span.innerHTML = inlineMarkdown(cell.text);
+    container.appendChild(span);
   }
 }
 
@@ -242,7 +248,7 @@ function cellLabel(cell) {
 
 /**
  * Convert a plain-text cell string to safe inline HTML.
- * Supports: **bold**, *italic*, `code`, ~~strikethrough~~, and \n line breaks.
+ * Supports: **bold**, *italic*, `code`, ~~strikethrough~~, __underline__, and \n line breaks.
  * HTML is escaped first so no raw markup can slip through.
  */
 function inlineMarkdown(text) {
@@ -252,6 +258,7 @@ function inlineMarkdown(text) {
   s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
   s = s.replace(/`([^`]+)`/g,     '<code>$1</code>');
   s = s.replace(/~~(.+?)~~/g,     '<del>$1</del>');
+  s = s.replace(/__(.+?)__/g,     '<u>$1</u>');
   s = s.replace(/\n/g,            '<br>');
   return s;
 }
@@ -813,13 +820,23 @@ const FileParser = {
     const rows = [];
     const levelMap = new Map(); // name -> color (insertion-ordered)
 
+    // ── Detect [INFO_CARD] preamble row ──────────────────────
+    let infoCard = null;
+    let workRows = rawRows;
+    if (rawRows.length > 0 && String(rawRows[0]?.[0] || '').trim().toUpperCase() === '[INFO_CARD]') {
+      const content = parseCell(String(rawRows[0][1] || '').trim());
+      const enabled = String(rawRows[0][2] || '').trim().toLowerCase() !== 'false';
+      if (content) infoCard = { content, enabled };
+      workRows = rawRows.slice(1);
+    }
+
     // Detect new format: first non-empty row whose first cell is 'level' (header row)
-    const firstNonEmpty = rawRows.findIndex(r => r && r.length > 0);
+    const firstNonEmpty = workRows.findIndex(r => r && r.length > 0);
     let hasLevelCol = false;
     let dataStart   = 0;
     let refColIdx   = -1;
     if (firstNonEmpty >= 0) {
-      const firstRow = rawRows[firstNonEmpty];
+      const firstRow = workRows[firstNonEmpty];
       if (String(firstRow[0] || '').trim().toLowerCase() === 'level') {
         hasLevelCol = true;
         dataStart   = firstNonEmpty + 1;
@@ -829,8 +846,8 @@ const FileParser = {
       }
     }
 
-    for (let ri = dataStart; ri < rawRows.length; ri++) {
-      const raw = rawRows[ri];
+    for (let ri = dataStart; ri < workRows.length; ri++) {
+      const raw = workRows[ri];
       if (!raw || raw.length === 0) continue;
       let off  = hasLevelCol ? 1 : 0;
       // If the reference column falls immediately before the question slot, shift past it
@@ -853,7 +870,7 @@ const FileParser = {
     }
 
     const levels = Array.from(levelMap.entries()).map(([name, color]) => ({ name, color }));
-    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows };
+    return { id: genId(), name, createdAt: new Date().toISOString(), levels, rows, infoCard };
   },
 
   /** Parse a CSV string into a 2-D array */
@@ -896,6 +913,7 @@ const FileParser = {
 const DataExport = {
   _sampleRows() {
     return [
+      ['[INFO_CARD]', 'Welcome to this sample deck! 🎓\nThis template shows the supported format — **levels**, references, images, and wrong answers. Replace the content below with your own questions.', ''],
       ['Level', 'Reference', 'Question', 'Correct Answer', 'Wrong 1', 'Wrong 2', 'Wrong 3'],
       ['Easy',   'France is a country in Western Europe; Paris has been its capital since 987 AD.', 'What is the capital of France?', 'Paris', 'London', 'Berlin', 'Madrid'],
       ['Easy',   '', 'Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
@@ -963,6 +981,11 @@ const DataExport = {
       return cells;
     });
     if (hasLevels) rows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
+    if (ds.infoCard) {
+      const icContent = toCell(ds.infoCard.content);
+      const icEnabled = ds.infoCard.enabled ? '' : 'false';
+      rows.unshift(['[INFO_CARD]', icContent, icEnabled]);
+    }
     return DataExport._toCSV(rows);
   },
 
@@ -988,6 +1011,11 @@ const DataExport = {
       return cells;
     });
     if (hasLevels) rows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
+    if (ds.infoCard) {
+      const icContent = toCell(ds.infoCard.content);
+      const icEnabled = ds.infoCard.enabled ? '' : 'false';
+      rows.unshift(['[INFO_CARD]', icContent, icEnabled]);
+    }
     const ws = XLSX.utils.aoa_to_sheet(rows);
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => {
       ws[k].s = { alignment: { wrapText: true } };
@@ -1309,6 +1337,9 @@ const LevelFilter = {
   hide(prefix) {
     document.getElementById(`${prefix}-level-filter`).classList.add('hidden');
     document.getElementById(`${prefix}-deck-list`).classList.remove('hidden');
+    // Hide the info card option row — deck-specific, resets on next deck selection
+    const icOptRow = document.getElementById(`${prefix}-opt-infocard-row`);
+    if (icOptRow) icOptRow.classList.add('hidden');
   },
 
   selectAll(prefix) {
@@ -1371,6 +1402,69 @@ const LevelFilter = {
     const parts = [...filter.levels];
     if (filter.includeUnlabeled) parts.push('Unlabeled');
     return parts.join(', ') || null;
+  }
+};
+
+// ============================================================
+// INFO CARD
+// ============================================================
+const InfoCard = {
+  // Render and display the info card panel for the given prefix ('quiz' | 'fc').
+  // onContinue: called when the user clicks Continue.
+  // onBack: called when the user clicks Back (optional).
+  async show(prefix, ds, onContinue, onBack) {
+    const panel     = document.getElementById(`${prefix}-infocard-panel`);
+    const contentEl = document.getElementById(`${prefix}-infocard-content`);
+    const deckList  = document.getElementById(`${prefix}-deck-list`);
+    const lfPanel   = document.getElementById(`${prefix}-level-filter`);
+    const resumeCard = document.getElementById(`${prefix === 'fc' ? 'fc' : ''}-resume-card`) ||
+                       document.getElementById('quiz-resume-card');
+
+    contentEl.innerHTML = '';
+
+    // Resolve [LOCAL:...] image references in the info card content before rendering
+    const cell = ds.infoCard.content;
+    let resolved = cell;
+    if (cell && (cell.type === 'local-image' ||
+        (cell.type === 'mixed' && (cell.localImage || cell.fromLibrary)))) {
+      const tmp = [{
+        id: 'ic', question: cell,
+        correctAnswer: { type: 'text', text: '' },
+        wrongAnswers: [], reference: null
+      }];
+      const [r] = await resolveLocalImages(tmp);
+      resolved = r.question;
+    }
+    renderCell(resolved, contentEl);
+
+    deckList.classList.add('hidden');
+    if (lfPanel) lfPanel.classList.add('hidden');
+    if (resumeCard) resumeCard.classList.add('hidden');
+    panel.classList.remove('hidden');
+
+    document.getElementById(`btn-${prefix}-infocard-continue`).onclick = () => {
+      panel.classList.add('hidden');
+      onContinue();
+    };
+    document.getElementById(`btn-${prefix}-infocard-back`).onclick = () => {
+      panel.classList.add('hidden');
+      deckList.classList.remove('hidden');
+      if (onBack) onBack();
+    };
+  },
+
+  hide(prefix) {
+    const panel = document.getElementById(`${prefix}-infocard-panel`);
+    if (panel) panel.classList.add('hidden');
+  },
+
+  // Returns true if the info card should be shown for this session.
+  // Reads the option-section checkbox; defaults to true when info card is enabled.
+  shouldShow(prefix, ds) {
+    if (!ds.infoCard || !ds.infoCard.enabled) return false;
+    const id = prefix === 'quiz' ? 'quiz-opt-infocard' : 'fc-opt-infocard';
+    const cb = document.getElementById(id);
+    return cb ? cb.checked : true;
   }
 };
 
@@ -1937,7 +2031,209 @@ Views.builder = {
     document.getElementById('builder-deck-list').innerHTML = '';
     document.getElementById('builder-editor').classList.remove('hidden');
 
+    Views.builder.wireInfoCard(ds);
     Views.builder.renderQuestions();
+  },
+
+  // Wire the info card editor section with the given dataset's existing infoCard.
+  wireInfoCard(ds) {
+    const ic       = ds.infoCard || null;
+    const enableCb = document.getElementById('builder-infocard-enabled');
+    const textArea = document.getElementById('builder-infocard-text');
+    const posRow   = document.getElementById('builder-infocard-pos-row');
+    const badge    = document.getElementById('builder-infocard-badge');
+    const section  = document.getElementById('builder-infocard-section');
+
+    // Populate fields from existing info card
+    enableCb.checked = !!(ic && ic.enabled);
+    const content = ic ? ic.content : null;
+    textArea.value = (content && (content.type === 'text' || content.type === 'mixed'))
+      ? (content.text || '') : '';
+
+    // Image preview helpers
+    const updatePosRow = () => {
+      const cur = State.bld.draft.infoCard && State.bld.draft.infoCard.content;
+      const isMixed = cur && cur.type === 'mixed';
+      posRow.classList.toggle('hidden', !isMixed);
+      if (isMixed) {
+        const pos = cur.imgPosition || 'before';
+        ['before','inline','after'].forEach(p => {
+          document.getElementById(`builder-infocard-pos-${p}`)?.classList.toggle('active', pos === p);
+        });
+      }
+    };
+    const getContent  = () => State.bld.draft.infoCard && State.bld.draft.infoCard.content;
+    const setContent  = v => {
+      if (!State.bld.draft.infoCard) State.bld.draft.infoCard = { content: null, enabled: false };
+      State.bld.draft.infoCard.content = v;
+    };
+    const updateBadge = () => {
+      if (badge) {
+        const active = !!(State.bld.draft.infoCard && State.bld.draft.infoCard.content &&
+                          State.bld.draft.infoCard.enabled);
+        badge.classList.toggle('hidden', !active);
+      }
+    };
+
+    // Show existing image preview if any
+    const existingImgPreview = document.getElementById('builder-infocard-img-preview');
+    if (existingImgPreview) existingImgPreview.remove();
+    const existingClearBtn  = document.getElementById('btn-builder-infocard-clear-img');
+    const fieldRow = document.getElementById('builder-infocard-field-row');
+
+    if (content && (content.type === 'image' || content.type === 'mixed') && content.src) {
+      const img = document.createElement('img');
+      img.src       = content.src;
+      img.id        = 'builder-infocard-img-preview';
+      img.className = 'builder-img-preview';
+      fieldRow.after(img);
+      if (existingClearBtn) existingClearBtn.classList.remove('hidden');
+    } else {
+      if (existingClearBtn) existingClearBtn.classList.add('hidden');
+    }
+
+    // Initialise draft.infoCard from the ds clone (already deep-cloned in openEditor)
+    // (State.bld.draft already has infoCard from the JSON clone)
+
+    updatePosRow();
+    updateBadge();
+
+    // ── Events ──
+    enableCb.onchange = () => {
+      if (!State.bld.draft.infoCard) State.bld.draft.infoCard = { content: null, enabled: false };
+      State.bld.draft.infoCard.enabled = enableCb.checked;
+      updateBadge();
+    };
+
+    textArea.oninput = () => {
+      const t   = textArea.value;
+      const cur = getContent();
+      const hasImg = cur && (cur.type === 'image' || cur.type === 'mixed') && cur.src;
+      setContent(hasImg
+        ? (t ? { type:'mixed', src:cur.src, fromLibrary:cur.fromLibrary, text:t, imgPosition:cur.imgPosition||'before' }
+             : { type:'image', src:cur.src, fromLibrary:cur.fromLibrary })
+        : (t ? { type:'text', text:t } : null));
+      updatePosRow();
+      updateBadge();
+    };
+
+    const setImgPreview = src => {
+      let p = document.getElementById('builder-infocard-img-preview');
+      if (!p) {
+        p = document.createElement('img');
+        p.id        = 'builder-infocard-img-preview';
+        p.className = 'builder-img-preview';
+        fieldRow.after(p);
+      }
+      p.src = src;
+      if (existingClearBtn) existingClearBtn.classList.remove('hidden');
+    };
+
+    document.getElementById('btn-builder-infocard-img').onclick = () =>
+      Views.builder.pickImage((uri, imgName) => {
+        const t = textArea.value;
+        setContent(t ? { type:'mixed', text:t, src:uri, fromLibrary:imgName, imgPosition:'before' }
+                     : { type:'image', src:uri, fromLibrary:imgName });
+        setImgPreview(uri);
+        updatePosRow();
+        updateBadge();
+      });
+
+    document.getElementById('btn-builder-infocard-lib').onclick = () =>
+      Views.builder.pickFromLibrary((src, imgName) => {
+        const t = textArea.value;
+        setContent(t ? { type:'mixed', text:t, src, fromLibrary:imgName, imgPosition:'before' }
+                     : { type:'image', src, fromLibrary:imgName });
+        setImgPreview(src);
+        updatePosRow();
+        updateBadge();
+      });
+
+    ['before','inline','after'].forEach(p => {
+      document.getElementById(`builder-infocard-pos-${p}`).onclick = () => {
+        const cur = getContent();
+        if (cur && cur.type === 'mixed') { setContent({...cur, imgPosition:p}); updatePosRow(); }
+      };
+    });
+
+    document.getElementById('btn-builder-infocard-clear-img').onclick = () => {
+      const t = textArea.value;
+      setContent(t ? { type:'text', text:t } : null);
+      const p = document.getElementById('builder-infocard-img-preview');
+      if (p) p.remove();
+      if (existingClearBtn) existingClearBtn.classList.add('hidden');
+      updatePosRow();
+      updateBadge();
+    };
+
+    document.getElementById('btn-builder-infocard-clear').onclick = () => {
+      State.bld.draft.infoCard = null;
+      textArea.value = '';
+      enableCb.checked = false;
+      const p = document.getElementById('builder-infocard-img-preview');
+      if (p) p.remove();
+      if (existingClearBtn) existingClearBtn.classList.add('hidden');
+      posRow.classList.add('hidden');
+      updateBadge();
+      if (section) section.open = false;
+    };
+
+    document.getElementById('btn-builder-infocard-preview').onclick =
+      () => Views.builder.previewInfoCard();
+  },
+
+  async previewInfoCard() {
+    // Sync the current textarea value into the draft so we preview unsaved text
+    const textArea = document.getElementById('builder-infocard-text');
+    const curText  = textArea ? textArea.value.trim() : '';
+    const ic       = State.bld.draft.infoCard;
+    let cell       = ic ? ic.content : null;
+
+    // Merge live textarea value with stored cell (same logic as save())
+    if (curText) {
+      if (!cell || cell.type === 'text') {
+        cell = { type: 'text', text: curText };
+      } else if (cell.type === 'mixed') {
+        cell = { ...cell, text: curText };
+      }
+    }
+
+    if (!cell) {
+      Toast.show('Info card has no content to preview', 'warning');
+      return;
+    }
+
+    // Resolve [LOCAL:...] image references
+    let resolved = cell;
+    if (cell.type === 'local-image' ||
+        (cell.type === 'mixed' && (cell.localImage || cell.fromLibrary))) {
+      const tmp = [{
+        id: 'ic-pv', question: cell,
+        correctAnswer: { type: 'text', text: '' },
+        wrongAnswers: [], reference: null
+      }];
+      const [r] = await resolveLocalImages(tmp);
+      resolved = r.question;
+    }
+
+    // Build preview DOM that mirrors the real info card panel
+    const wrap = document.createElement('div');
+    wrap.className = 'infocard-preview-wrap';
+    wrap.innerHTML = `
+      <p class="infocard-panel-label">📋 Before You Begin</p>
+      <div class="infocard-panel-content" id="pv-ic-content"></div>
+      <p class="preview-hint" style="margin-top:.75rem;text-align:center">
+        This is how the info card will appear before the session starts.
+      </p>`;
+
+    Modal.show({
+      title:   '👁 Info Card Preview',
+      body:    wrap,
+      wide:    true,
+      buttons: [{ label: 'Close' }]
+    });
+
+    renderCell(resolved, document.getElementById('pv-ic-content'));
   },
 
   renderQuestions() {
@@ -2019,6 +2315,15 @@ Views.builder = {
     }
     const needle = State.bld.searchText.trim().toLowerCase();
     if (needle) {
+      const icContent = State.bld.draft.infoCard && State.bld.draft.infoCard.content;
+      const icText = icContent && (icContent.type === 'text' || icContent.type === 'mixed')
+        ? (icContent.text || '').toLowerCase() : '';
+      const icMatch = icText.includes(needle);
+      const icSection = document.getElementById('builder-infocard-section');
+      if (icSection) {
+        icSection.classList.toggle('infocard-search-match', icMatch);
+        if (icMatch) icSection.open = true;
+      }
       filtered = filtered.filter(({ row }) => {
         const getText = cell => (cell && (cell.type === 'text' || cell.type === 'mixed') ? (cell.text || '') : '');
         const refCell = row.referenceCell ?? (typeof row.reference === 'string' ? parseCell(row.reference) : row.reference);
@@ -2030,6 +2335,9 @@ Views.builder = {
         ].join('\n').toLowerCase();
         return haystack.includes(needle);
       });
+    } else {
+      const icSection = document.getElementById('builder-infocard-section');
+      if (icSection) icSection.classList.remove('infocard-search-match');
     }
 
     const countEl = document.getElementById('builder-search-count');
@@ -2636,6 +2944,22 @@ Views.builder = {
   async save() {
     const draft = State.bld.draft;
     draft.name  = document.getElementById('deck-name-input').value.trim() || 'Untitled Deck';
+
+    // Sync info card text from textarea to draft
+    const icText   = document.getElementById('builder-infocard-text')?.value?.trim() || '';
+    const icEnable = document.getElementById('builder-infocard-enabled')?.checked ?? false;
+    if (draft.infoCard) {
+      draft.infoCard.enabled = icEnable;
+      const cur = draft.infoCard.content;
+      if (!cur || cur.type === 'text') {
+        draft.infoCard.content = icText ? { type:'text', text:icText } : null;
+      } else if (cur.type === 'mixed') {
+        draft.infoCard.content = { ...cur, text: icText };
+      }
+      if (!draft.infoCard.content) draft.infoCard = null;
+    } else if (icText) {
+      draft.infoCard = { content: { type:'text', text:icText }, enabled: icEnable };
+    }
 
     // sync textarea values to draft
     document.querySelectorAll('.builder-q-card').forEach(card => {
@@ -3767,6 +4091,8 @@ Views.flashcards = {
     document.getElementById('fc-selector').classList.remove('hidden');
     document.getElementById('fc-player').classList.add('hidden');
     document.getElementById('fc-level-filter').classList.add('hidden');
+    document.getElementById('fc-infocard-panel').classList.add('hidden');
+    document.getElementById('fc-opt-infocard-row').classList.add('hidden');
     document.getElementById('fc-deck-list').classList.remove('hidden');
     Views.flashcards.renderResumeCard();
     renderDatasetPicker(document.getElementById('fc-deck-list'), meta => {
@@ -3777,8 +4103,19 @@ Views.flashcards = {
   async showLevelFilter(datasetId) {
     const ds = await Storage.getDataset(datasetId);
     if (!ds) { Toast.show('Could not load dataset', 'error'); return; }
-    if (!(ds.levels || []).length) {
-      Views.flashcards.startWithDs(ds, null);
+    const hasLevels   = !!(ds.levels || []).length;
+    const hasInfoCard = !!(ds.infoCard && ds.infoCard.enabled);
+    // Show/hide the info card option and reset it to checked
+    const icRow = document.getElementById('fc-opt-infocard-row');
+    const icCb  = document.getElementById('fc-opt-infocard');
+    if (icRow) icRow.classList.toggle('hidden', !hasInfoCard);
+    if (icCb)  icCb.checked = true;
+    if (!hasLevels) {
+      if (hasInfoCard) {
+        InfoCard.show('fc', ds, () => Views.flashcards.startWithDs(ds, null));
+      } else {
+        Views.flashcards.startWithDs(ds, null);
+      }
       return;
     }
     LevelFilter.show('fc', ds, null);
@@ -3833,8 +4170,14 @@ Views.flashcards = {
       }
     }
 
-    const card = document.getElementById('fc-card');
+    const card      = document.getElementById('fc-card');
+    const cardInner = document.getElementById('fc-card-inner');
+    // Disable the flip transition momentarily so the new back-face content is
+    // never visible mid-animation when navigating to a different card.
+    cardInner.style.transition = 'none';
     card.classList.remove('flipped');
+    cardInner.offsetHeight; // force reflow before re-enabling transition
+    cardInner.style.transition = '';
     renderCell(row.question,      document.getElementById('fc-front-content'));
     renderCell(row.correctAnswer, document.getElementById('fc-back-content'));
 
@@ -3900,6 +4243,7 @@ Views.flashcards = {
     Views.flashcards.finishSession();
     document.getElementById('fc-player').classList.add('hidden');
     document.getElementById('fc-level-filter').classList.add('hidden');
+    document.getElementById('fc-infocard-panel').classList.add('hidden');
     document.getElementById('fc-deck-list').classList.remove('hidden');
     document.getElementById('fc-selector').classList.remove('hidden');
     document.getElementById('btn-fc-save').classList.add('hidden');
@@ -3950,8 +4294,12 @@ Views.flashcards = {
       startedAt:        sess.startedAt   || new Date().toISOString(),
       sessionId:        sess.id          || genId()
     };
-    Storage.lsSet(key, snapshot);
-    Toast.show('Progress saved', 'success');
+    const saved = Storage.lsSet(key, snapshot);
+    if (saved) {
+      Toast.show('Progress saved', 'success');
+    } else {
+      Toast.show('Could not save progress — storage may be full', 'error', 5000);
+    }
   },
 
   renderResumeCard() {
@@ -4021,11 +4369,22 @@ Views.flashcards = {
     State.fc.viewedIds  = new Set(snap.viewedIds || []);
     State.fc.sessionRef = session;
 
-    document.getElementById('fc-selector').classList.add('hidden');
-    document.getElementById('fc-player').classList.remove('hidden');
-    document.getElementById('btn-fc-save').classList.remove('hidden');
-    Views.flashcards.showCard(State.fc.idx);
-    Toast.show('Flashcard session resumed', 'success');
+    const launchPlayer = () => {
+      document.getElementById('fc-selector').classList.add('hidden');
+      document.getElementById('fc-player').classList.remove('hidden');
+      document.getElementById('btn-fc-save').classList.remove('hidden');
+      Views.flashcards.showCard(State.fc.idx);
+      Toast.show('Flashcard session resumed', 'success');
+    };
+
+    if (ds.infoCard && ds.infoCard.enabled) {
+      // Keep selector visible but show only the info card panel
+      document.getElementById('fc-deck-list').classList.add('hidden');
+      document.getElementById('fc-resume-card').classList.add('hidden');
+      InfoCard.show('fc', ds, launchPlayer, () => Views.flashcards.onEnter());
+    } else {
+      launchPlayer();
+    }
   },
 
   onBeforeLeave(proceed) {
@@ -4038,7 +4397,6 @@ Views.flashcards = {
         buttons: [
           { label: 'Cancel' },
           { label: 'Exit without saving', cls: 'btn-ghost', action: () => {
-            Views.flashcards._clearProgress();
             Views.flashcards.exit();
             proceed();
           }},
@@ -4072,6 +4430,8 @@ Views.quiz = {
     document.getElementById('quiz-player').classList.add('hidden');
     document.getElementById('quiz-summary').classList.add('hidden');
     document.getElementById('quiz-level-filter').classList.add('hidden');
+    document.getElementById('quiz-infocard-panel').classList.add('hidden');
+    document.getElementById('quiz-opt-infocard-row').classList.add('hidden');
     document.getElementById('quiz-deck-list').classList.remove('hidden');
     document.getElementById('btn-quiz-save').classList.add('hidden');
     renderDatasetPicker(document.getElementById('quiz-deck-list'), meta => {
@@ -4115,8 +4475,19 @@ Views.quiz = {
       Toast.show('This deck has no wrong answers – cannot run quiz mode', 'warning', 4000);
       return;
     }
-    if (!(ds.levels || []).length) {
-      Views.quiz.startWithDs(ds, null);
+    const hasLevels   = !!(ds.levels || []).length;
+    const hasInfoCard = !!(ds.infoCard && ds.infoCard.enabled);
+    // Show/hide the info card option and reset it to checked
+    const icRow = document.getElementById('quiz-opt-infocard-row');
+    const icCb  = document.getElementById('quiz-opt-infocard');
+    if (icRow) icRow.classList.toggle('hidden', !hasInfoCard);
+    if (icCb)  icCb.checked = true;
+    if (!hasLevels) {
+      if (hasInfoCard) {
+        InfoCard.show('quiz', ds, () => Views.quiz.startWithDs(ds, null));
+      } else {
+        Views.quiz.startWithDs(ds, null);
+      }
       return;
     }
     LevelFilter.show('quiz', ds, r => r.wrongAnswers.length > 0);
@@ -4479,6 +4850,12 @@ Views.quiz = {
     const qz = State.qz;
     // If the current question was already answered, advance past it so we don't re-ask it on resume.
     const resumeIdx = qz.answered ? qz.idx + 1 : qz.idx;
+    // Strip image data URIs from allAttempts to keep the snapshot small enough for localStorage.
+    // Images live in IndexedDB and are re-resolved when the session is resumed or finalised.
+    const slimAttempts = (qz.allAttempts || []).map(a => ({
+      qId: a.qId, round: a.round, correct: a.correct, level: a.level,
+      selectedText: a.selectedText, questionLabel: a.questionLabel, correctLabel: a.correctLabel
+    }));
     const snapshot = {
       userId:           State.currentUser.id,
       savedAt:          new Date().toISOString(),
@@ -4494,14 +4871,18 @@ Views.quiz = {
       score:            qz.score,
       levelScores:      qz.levelScores || {},
       results:          qz.results,
-      allAttempts:      qz.allAttempts,
+      allAttempts:      slimAttempts,
       showCorrect:      qz.showCorrect,
       autoRetry:        qz.autoRetry,
       startedAt:        qz.startedAt,
       sessionId:        qz.sessionId
     };
-    Storage.lsSet(key, snapshot);
-    Toast.show('Progress saved', 'success');
+    const saved = Storage.lsSet(key, snapshot);
+    if (saved) {
+      Toast.show('Progress saved', 'success');
+    } else {
+      Toast.show('Could not save progress — storage may be full', 'error', 5000);
+    }
   },
 
   renderResumeCard() {
@@ -4554,6 +4935,18 @@ Views.quiz = {
       return;
     }
 
+    // Re-resolve image data URIs for allAttempts entries — they were stripped when saving
+    // to keep the snapshot small. rowMap already has fully resolved rows from IndexedDB.
+    const restoredAttempts = (snap.allAttempts || []).map(a => {
+      const row = rowMap.get(a.qId);
+      return row ? {
+        ...a,
+        questionSrc: cellImgSrc(row.question),
+        correctSrc:  cellImgSrc(row.correctAnswer),
+        selectedSrc: null   // which wrong answer was chosen is not recoverable
+      } : a;
+    });
+
     State.qz = {
       datasetId:        snap.datasetId,
       datasetName:      snap.datasetName,
@@ -4565,7 +4958,7 @@ Views.quiz = {
       score:       snap.score       || { correct: 0, total: 0 },
       levelScores: snap.levelScores  || {},
       results:     snap.results     || [],
-      allAttempts: snap.allAttempts || [],
+      allAttempts: restoredAttempts,
       answered:    false,
       showCorrect: snap.showCorrect,
       autoRetry:   snap.autoRetry,
@@ -4585,12 +4978,31 @@ Views.quiz = {
       if (resultMap.has(q.id)) Views.quiz.updateGridSquare(i, resultMap.get(q.id) ? 'sq-correct' : 'sq-wrong');
     });
 
-    if (snap.roundComplete || snap.idx >= pool.length) {
-      Views.quiz.endRound();
+    const launchQuiz = () => {
+      if (snap.roundComplete || snap.idx >= pool.length) {
+        Views.quiz.endRound();
+      } else {
+        Views.quiz.showQuestion(snap.idx);
+      }
+      Toast.show('Quiz resumed', 'success');
+    };
+
+    if (ds.infoCard && ds.infoCard.enabled) {
+      // Show info card before the player becomes interactive
+      document.getElementById('quiz-selector').classList.remove('hidden');
+      document.getElementById('quiz-player').classList.add('hidden');
+      document.getElementById('btn-quiz-save').classList.add('hidden');
+      document.getElementById('quiz-deck-list').classList.add('hidden');
+      document.getElementById('quiz-resume-card').classList.add('hidden');
+      InfoCard.show('quiz', ds, () => {
+        document.getElementById('quiz-selector').classList.add('hidden');
+        document.getElementById('quiz-player').classList.remove('hidden');
+        document.getElementById('btn-quiz-save').classList.remove('hidden');
+        launchQuiz();
+      }, () => Views.quiz.onEnter());
     } else {
-      Views.quiz.showQuestion(snap.idx);
+      launchQuiz();
     }
-    Toast.show('Quiz resumed', 'success');
   }
 };
 
@@ -5476,7 +5888,13 @@ function wireEvents() {
   document.getElementById('btn-fc-lf-start').addEventListener('click', () => {
     const p = LevelFilter._pending.fc;
     if (!p) return;
-    Views.flashcards.startWithDs(p.ds, LevelFilter.readFilter('fc'));
+    const filter = LevelFilter.readFilter('fc');
+    LevelFilter.hide('fc');
+    if (InfoCard.shouldShow('fc', p.ds)) {
+      InfoCard.show('fc', p.ds, () => Views.flashcards.startWithDs(p.ds, filter));
+    } else {
+      Views.flashcards.startWithDs(p.ds, filter);
+    }
   });
 
   // ── Level Filter (Quiz) ──
@@ -5486,7 +5904,13 @@ function wireEvents() {
   document.getElementById('btn-quiz-lf-start').addEventListener('click', () => {
     const p = LevelFilter._pending.quiz;
     if (!p) return;
-    Views.quiz.startWithDs(p.ds, LevelFilter.readFilter('quiz'));
+    const filter = LevelFilter.readFilter('quiz');
+    LevelFilter.hide('quiz');
+    if (InfoCard.shouldShow('quiz', p.ds)) {
+      InfoCard.show('quiz', p.ds, () => Views.quiz.startWithDs(p.ds, filter));
+    } else {
+      Views.quiz.startWithDs(p.ds, filter);
+    }
   });
 
   document.getElementById('fc-card').addEventListener('click', () => Views.flashcards.flip());
@@ -5513,7 +5937,6 @@ function wireEvents() {
         buttons: [
           { label: 'Cancel' },
           { label: 'Exit without saving', cls: 'btn-ghost', action: () => {
-            Views.flashcards._clearProgress();
             Views.flashcards.exit();
           }},
           { label: '\ud83d\udcbe Save & Exit', cls: 'btn-primary', action: () => {

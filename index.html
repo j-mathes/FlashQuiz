@@ -267,6 +267,35 @@ __underline__</pre>
             </div>
           </div>
         </details>
+        <details id="builder-infocard-section" class="builder-infocard-section">
+          <summary class="builder-infocard-summary">
+            📋 Info Card
+            <span id="builder-infocard-badge" class="builder-infocard-badge hidden">● Enabled</span>
+          </summary>
+          <div class="builder-infocard-body">
+            <label class="builder-infocard-enable-row">
+              <input type="checkbox" id="builder-infocard-enabled">
+              Show this card before starting (quiz &amp; flashcard)
+            </label>
+            <div class="builder-field-label" style="margin-top:.35rem">Content (text and/or image)</div>
+            <div class="builder-field-row" id="builder-infocard-field-row">
+              <textarea id="builder-infocard-text" class="builder-infocard-textarea" rows="3" placeholder="Info card text… (**bold**, *italic*, images supported)"></textarea>
+              <button id="btn-builder-infocard-img" class="builder-img-btn" title="Upload image"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+              <button id="btn-builder-infocard-lib" class="builder-img-btn" title="Pick from library"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></button>
+            </div>
+            <div id="builder-infocard-pos-row" class="img-pos-row hidden">
+              <span class="img-pos-label">Image:</span>
+              <button class="img-pos-opt" id="builder-infocard-pos-before">Above</button>
+              <button class="img-pos-opt" id="builder-infocard-pos-inline">Inline</button>
+              <button class="img-pos-opt" id="builder-infocard-pos-after">Below</button>
+            </div>
+            <div class="builder-infocard-clear-row">
+              <button id="btn-builder-infocard-clear-img" class="builder-img-clear hidden">✕ Remove image</button>
+              <button id="btn-builder-infocard-preview" class="btn btn-secondary btn-sm">👁 Preview</button>
+              <button id="btn-builder-infocard-clear" class="btn btn-ghost btn-sm">✕ Clear info card</button>
+            </div>
+          </div>
+        </details>
         <div class="builder-search-row">
           <input type="search" id="builder-search-input" class="builder-search-input" placeholder="🔍 Search questions…" autocomplete="off">
           <span id="builder-search-count" class="builder-search-count"></span>
@@ -309,6 +338,14 @@ __underline__</pre>
             </div>
           </div>
         </div>
+        <div id="fc-infocard-panel" class="infocard-panel hidden">
+          <p class="infocard-panel-label">📋 Before You Begin</p>
+          <div id="fc-infocard-content" class="infocard-panel-content"></div>
+          <div class="infocard-panel-footer">
+            <button id="btn-fc-infocard-back" class="btn btn-ghost">← Back to decks</button>
+            <button id="btn-fc-infocard-continue" class="btn btn-primary">Continue →</button>
+          </div>
+        </div>
         <div id="fc-level-filter" class="level-filter-panel hidden">
           <button id="btn-fc-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
           <h3 id="fc-lf-deck-name" class="lf-deck-name"></h3>
@@ -319,6 +356,12 @@ __underline__</pre>
             <button id="btn-fc-lf-none" class="btn btn-ghost btn-sm">None</button>
             <button id="btn-fc-lf-start" class="btn btn-primary">Start</button>
           </div>
+        </div>
+        <div id="fc-opt-infocard-row" class="quiz-options hidden">
+          <label class="quiz-option-label">
+            <input type="checkbox" id="fc-opt-infocard" checked>
+            Show info card before starting
+          </label>
         </div>
       </div>
 
@@ -378,6 +421,14 @@ __underline__</pre>
             </div>
           </div>
         </div>
+        <div id="quiz-infocard-panel" class="infocard-panel hidden">
+          <p class="infocard-panel-label">📋 Before You Begin</p>
+          <div id="quiz-infocard-content" class="infocard-panel-content"></div>
+          <div class="infocard-panel-footer">
+            <button id="btn-quiz-infocard-back" class="btn btn-ghost">← Back to decks</button>
+            <button id="btn-quiz-infocard-continue" class="btn btn-primary">Continue →</button>
+          </div>
+        </div>
         <div id="quiz-level-filter" class="level-filter-panel hidden">
           <button id="btn-quiz-lf-back" class="btn btn-ghost btn-sm">← Back to decks</button>
           <h3 id="quiz-lf-deck-name" class="lf-deck-name"></h3>
@@ -390,6 +441,10 @@ __underline__</pre>
           </div>
         </div>
         <div class="quiz-options">
+          <label id="quiz-opt-infocard-row" class="quiz-option-label hidden">
+            <input type="checkbox" id="quiz-opt-infocard" checked>
+            Show info card before starting
+          </label>
           <label class="quiz-option-label">
             <input type="checkbox" id="quiz-opt-show-correct" checked>
             Show correct answer on wrong guess
