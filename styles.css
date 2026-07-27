@@ -1850,6 +1850,14 @@ button.level-badge {
   }
   .report-name { flex: none; }
 
+  /* Dataset list: info above buttons */
+  .dataset-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dataset-item-info { min-width: unset; }
+  .dataset-actions { justify-content: flex-start; }
+
   /* Builder card header: identity row on top, action buttons below */
   .builder-q-card-header {
     flex-wrap: wrap;

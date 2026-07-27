@@ -308,6 +308,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.6.8** | Mobile portrait: dataset list now stacks deck name/info above buttons instead of squishing both into one row |
 | **4.6.7** | Data management: the separate "⬇ CSV" and "⬇ Bundle" buttons on the Data page are replaced by a single **⬇ Export** button that opens the same dialog as the builder — editable filename, CSV / Excel / Bundle ZIP format, and deck format inside the ZIP |
 | **4.6.6** | Bug fix: info card (`[INFO_CARD]` row) was omitted from the deck file when exporting a bundle in Excel format — it is now included, consistent with CSV bundles and standalone Excel exports |
 | **4.6.5** | UX: “Show info card before starting” moved out of the level-filter panel and into the options section alongside “Show correct answer” / “Retry incorrect”; a matching option row is added to the flashcard selector |
