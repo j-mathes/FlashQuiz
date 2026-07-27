@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.6.5';
+const APP_VERSION  = '4.6.6';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -507,6 +507,11 @@ async function exportBundle(ds, filename, bundleFmt = 'csv') {
       return cells;
     });
     if (hasLevels) xlsxRows.unshift(['Level', 'Reference', 'Question', 'Correct Answer']);
+    if (ds.infoCard) {
+      const icContent = toCell(ds.infoCard.content);
+      const icEnabled = ds.infoCard.enabled ? '' : 'false';
+      xlsxRows.unshift(['[INFO_CARD]', icContent, icEnabled]);
+    }
     const ws = XLSX.utils.aoa_to_sheet(xlsxRows);
     Object.keys(ws).filter(k => !k.startsWith('!')).forEach(k => { ws[k].s = { alignment: { wrapText: true } }; });
     const wb = XLSX.utils.book_new();

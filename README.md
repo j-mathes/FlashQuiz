@@ -205,6 +205,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.6.6** | Bug fix: info card now included when exporting a bundle with Excel (.xlsx) format |
 | **4.6.5** | "Show info card before starting" moved into the session-options area (alongside Show correct answer / Retry incorrect) for both quiz and flashcard modes |
 | **4.6.4** | Bug fix: flashcard "Exit without saving" no longer deletes the previously-saved snapshot |
 | **4.6.3** | Bug fix: navigating cards while flipped no longer briefly reveals the next card's answer |
