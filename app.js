@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.6.6';
+const APP_VERSION  = '4.6.7';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -1576,8 +1576,7 @@ Views.data = {
         </div>
         <div class="dataset-actions">
           <button class="btn btn-secondary" data-action="preview" data-id="${m.id}">Preview</button>
-          <button class="btn btn-secondary" data-action="export"  data-id="${m.id}">⬇ CSV</button>
-          <button class="btn btn-secondary" data-action="bundle"  data-id="${m.id}">⬇ Bundle</button>
+          <button class="btn btn-secondary" data-action="bundle"  data-id="${m.id}">⬇ Export</button>
           <button class="btn btn-danger"    data-action="delete"  data-id="${m.id}">Delete</button>
         </div>`;
       list.appendChild(div);
@@ -1610,7 +1609,70 @@ Views.data = {
         } else if (action === 'bundle') {
           const ds = await Storage.getDataset(id);
           if (!ds) return;
-          await exportBundle(ds);
+          const bWrap = document.createElement('div');
+          bWrap.style.cssText = 'display:flex;flex-direction:column;gap:.9rem';
+          bWrap.innerHTML = `
+            <div>
+              <label style="display:block;font-size:.85rem;margin-bottom:.3rem;color:var(--clr-text-muted)">File name</label>
+              <input id="dm-export-filename" type="text" class="deck-name-input" style="width:100%;box-sizing:border-box"
+                value="${esc(ds.name || 'deck')}" maxlength="100" autocomplete="off">
+            </div>
+            <div>
+              <label style="display:block;font-size:.85rem;margin-bottom:.4rem;color:var(--clr-text-muted)">Format</label>
+              <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+                  <input type="radio" name="dm-export-fmt" value="csv" checked> CSV (.csv)
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+                  <input type="radio" name="dm-export-fmt" value="xlsx"> Excel (.xlsx)
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+                  <input type="radio" name="dm-export-fmt" value="bundle"> Bundle ZIP (deck + images)
+                </label>
+              </div>
+              <div id="dm-bundle-fmt-row" style="display:none;margin-top:.5rem;padding:.4rem .6rem;background:var(--clr-surface-2,#f0f0f0);border-radius:.4rem">
+                <span style="font-size:.82rem;color:var(--clr-text-muted);margin-right:.6rem">Deck format inside ZIP:</span>
+                <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.85rem;margin-right:.8rem">
+                  <input type="radio" name="dm-bundle-deck-fmt" value="csv" checked> CSV
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.85rem">
+                  <input type="radio" name="dm-bundle-deck-fmt" value="xlsx"> Excel (.xlsx)
+                </label>
+              </div>
+              <p style="font-size:.78rem;color:var(--clr-text-muted);margin:.4rem 0 0">Excel preserves multi-line cells (text&thinsp;+&thinsp;image) correctly when opened in Excel. Bundle packages the deck and all its library images into one ZIP for easy transfer.</p>
+            </div>`;
+          Modal.show({ title: '⬇ Export Deck', body: bWrap, wide: true, buttons: [
+            { label: 'Cancel' },
+            { label: 'Export', cls: 'btn-primary', action: async () => {
+              const filename = (document.getElementById('dm-export-filename').value.trim() || ds.name || 'deck');
+              const fmt = bWrap.querySelector('input[name="dm-export-fmt"]:checked').value;
+              if (fmt === 'bundle') {
+                const bundleDeckFmt = bWrap.querySelector('input[name="dm-bundle-deck-fmt"]:checked').value;
+                await exportBundle(ds, filename, bundleDeckFmt);
+              } else if (fmt === 'xlsx') {
+                if (typeof XLSX === 'undefined') { Toast.show('SheetJS not loaded — use CSV instead', 'warning'); return; }
+                DataExport.datasetToXLSX(ds, filename);
+              } else {
+                const csv  = DataExport.datasetToCSV(ds);
+                const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+                const url  = URL.createObjectURL(blob);
+                const a    = Object.assign(document.createElement('a'), { href: url, download: filename + '.csv' });
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+              }
+            }}
+          ]});
+          setTimeout(() => {
+            const inp = document.getElementById('dm-export-filename');
+            if (inp) { inp.select(); inp.focus(); }
+            const fmtRadios    = bWrap.querySelectorAll('input[name="dm-export-fmt"]');
+            const bundleFmtRow = bWrap.querySelector('#dm-bundle-fmt-row');
+            const toggleBundle = () => {
+              const isBundle = bWrap.querySelector('input[name="dm-export-fmt"]:checked')?.value === 'bundle';
+              bundleFmtRow.style.display = isBundle ? 'block' : 'none';
+            };
+            fmtRadios.forEach(r => r.addEventListener('change', toggleBundle));
+          }, 50);
 
         } else if (action === 'preview') {
           const ds = await Storage.getDataset(id);
