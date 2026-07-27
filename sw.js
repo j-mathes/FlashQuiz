@@ -6,7 +6,7 @@
 
 "use strict";
 
-var CACHE_VERSION = "v31";
+var CACHE_VERSION = "v32";
 var CACHE_NAME    = "flashquiz-" + CACHE_VERSION;
 
 var CORE_ASSETS = [
@@ -23,8 +23,12 @@ self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(function (cache) { return cache.addAll(CORE_ASSETS); })
-      .then(function () { return self.skipWaiting(); })
   );
+});
+
+// ---- Message: allow the page to trigger activation of a waiting SW ----
+self.addEventListener("message", function (e) {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 // ---- Activate: delete caches from previous versions ----

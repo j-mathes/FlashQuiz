@@ -308,6 +308,7 @@ All data is browser-local — nothing leaves your device.
 
 | Version | Highlights |
 |---|---|
+| **4.6.9** | Fix PWA update on iOS: SW no longer auto-skips waiting; toast now sends `SKIP_WAITING` message; reload is triggered by `controllerchange`; also detects updates that installed while the app was closed |
 | **4.6.8** | Mobile portrait: dataset list now stacks deck name/info above buttons instead of squishing both into one row |
 | **4.6.7** | Data management: the separate "⬇ CSV" and "⬇ Bundle" buttons on the Data page are replaced by a single **⬇ Export** button that opens the same dialog as the builder — editable filename, CSV / Excel / Bundle ZIP format, and deck format inside the ZIP |
 | **4.6.6** | Bug fix: info card (`[INFO_CARD]` row) was omitted from the deck file when exporting a bundle in Excel format — it is now included, consistent with CSV bundles and standalone Excel exports |

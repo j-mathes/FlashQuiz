@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.6.8';
+const APP_VERSION  = '4.6.9';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -6174,24 +6174,38 @@ document.addEventListener('DOMContentLoaded', function () {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(function (reg) {
+        // When the new SW takes control, reload to get fresh assets.
+        // This fires after the user taps the toast and the SW calls skipWaiting().
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          window.location.reload();
+        });
+
+        function showUpdateToast() {
+          document.querySelectorAll('.toast-update').forEach(el => el.remove());
+          const t = document.createElement('div');
+          t.className = 'toast-update';
+          t.textContent = 'Update available \u2014 tap to refresh';
+          t.setAttribute('role', 'button');
+          t.setAttribute('tabindex', '0');
+          t.setAttribute('aria-label', 'Update available \u2014 tap to refresh');
+          const apply = () => {
+            if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          };
+          t.addEventListener('click', apply);
+          t.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); }
+          });
+          document.body.appendChild(t);
+        }
+
+        // Update already installed while the app was closed — SW is waiting.
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdateToast();
+
         reg.addEventListener('updatefound', function () {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', function () {
-            // 'installed' + existing controller = a new version is waiting (not first install)
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              document.querySelectorAll('.toast-update').forEach(el => el.remove());
-              const t = document.createElement('div');
-              t.className = 'toast-update';
-              t.textContent = 'Update available \u2014 tap to refresh';
-              t.setAttribute('role', 'button');
-              t.setAttribute('tabindex', '0');
-              t.setAttribute('aria-label', 'Update available \u2014 tap to refresh');
-              const reload = () => window.location.reload();
-              t.addEventListener('click', reload);
-              t.addEventListener('keydown', e => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reload(); }
-              });
-              document.body.appendChild(t);
+              showUpdateToast();
             }
           });
         });
