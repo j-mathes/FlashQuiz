@@ -15,3 +15,6 @@ npm-debug.log*
 # Build output (if ever added)
 dist/
 build/
+
+# Local reference materials (not part of the project)
+reference/
