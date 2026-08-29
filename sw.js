@@ -6,7 +6,7 @@
 
 "use strict";
 
-var CACHE_VERSION = "v32";
+var CACHE_VERSION = "v34";
 var CACHE_NAME    = "flashquiz-" + CACHE_VERSION;
 
 var CORE_ASSETS = [

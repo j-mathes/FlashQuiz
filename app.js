@@ -8,7 +8,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const APP_VERSION  = '4.6.9';
+const APP_VERSION  = '4.6.11';
 const DB_NAME      = 'FlashQuizDB';
 const DB_VERSION   = 2;
 const STORE_DS     = 'datasets';
@@ -4872,7 +4872,10 @@ Views.quiz = {
       endedAt:    new Date().toISOString(),
       finalScore: { correct: firstC, total: State.qz.questions.length },
       totalRounds: State.qz.round,
-      attempts:    State.qz.allAttempts,
+      attempts:    State.qz.allAttempts.map(a => ({
+        qId: a.qId, round: a.round, correct: a.correct, level: a.level,
+        selectedText: a.selectedText, questionLabel: a.questionLabel, correctLabel: a.correctLabel
+      })),
       questionIds: State.qz.questions.map(q => q.id),
       levels:      State.qz.levels || [],
       levelScores: State.qz.levelScores || {},
@@ -4881,7 +4884,9 @@ Views.quiz = {
     // overwrite any prior save for the same session
     const existing = Storage.getSessions().filter(s => s.id !== sess.id);
     existing.push(sess);
-    Storage.lsSet('sessions', existing);
+    if (!Storage.lsSet('sessions', existing)) {
+      Toast.show('Could not save quiz report — storage may be full', 'error', 5000);
+    }
     // Quiz is complete — clear any saved progress for this user
     const progKey = Views.quiz._progressKey();
     if (progKey) Storage.lsDel(progKey);
@@ -6062,6 +6067,11 @@ function wireEvents() {
   });
   document.getElementById('btn-quiz-next').addEventListener('click', () => {
     Views.quiz.showQuestion(State.qz.idx + 1);
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      requestAnimationFrame(() => {
+        document.querySelector('.quiz-question-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   });
   // keyboard: 1-4 to select answer
   document.addEventListener('keydown', e => {
